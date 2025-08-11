@@ -1,0 +1,10 @@
+{
+  "apps": {
+    "name": "fcv-node",
+    "script": "./dist/index.mjs",
+    // "instances": 1,
+    "exec_mode": "cluster",
+    "watch": true,
+    "max_memory_restart": "200M"
+  }
+}

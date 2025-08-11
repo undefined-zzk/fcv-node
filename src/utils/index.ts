@@ -1,0 +1,159 @@
+import type { Response, Request } from 'express'
+import jsyaml from 'js-yaml'
+import fs from 'fs'
+import crypto from 'crypto'
+import svgCaptcha from 'svg-captcha'
+// 生成公钥和私钥
+export const generateKeyPair = () => {
+  const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', {
+    modulusLength: 2048,
+    publicKeyEncoding: {
+      type: 'spki',
+      format: 'pem',
+    },
+    privateKeyEncoding: {
+      type: 'pkcs8',
+      format: 'pem',
+    },
+  })
+  return {
+    publicKey,
+    privateKey,
+  }
+}
+
+// 私钥解密
+export const decryptWithPrivateKey = (encryptedData: string): string => {
+  try {
+    const {
+      rsa: { privateKey },
+    } = jsyaml.load(
+      fs.readFileSync(process.cwd() + '/rsa.config.yaml', 'utf-8')
+    ) as { rsa: { privateKey: string } }
+    const buffer = Buffer.from(encryptedData, 'base64')
+    const decrypted = crypto.privateDecrypt(
+      {
+        key: privateKey,
+        padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
+        oaepHash: 'sha256',
+      },
+      buffer
+    )
+    return decrypted.toString('utf8')
+  } catch (error) {
+    console.error('RSA解密失败:', error)
+    throw new Error('解密失败，请检查私钥和加密数据是否正确')
+  }
+}
+
+// 公钥加密
+export const encryptWithPublicKey = (data: string): string => {
+  try {
+    const {
+      rsa: { publicKey },
+    } = jsyaml.load(
+      fs.readFileSync(process.cwd() + '/rsa.config.yaml', 'utf-8')
+    ) as { rsa: { publicKey: string } }
+    const buffer = Buffer.from(data, 'utf8')
+    const encrypted = crypto.publicEncrypt(
+      {
+        key: publicKey,
+        padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
+        oaepHash: 'sha256',
+      },
+      buffer
+    )
+    return encrypted.toString('base64')
+  } catch (error) {
+    console.error('RSA加密失败:', error)
+    throw new Error('加密失败，请检查公钥和数据是否正确')
+  }
+}
+
+/**
+ * 统一发送响应格式
+ * @param code
+ * @param msg
+ * @param data
+ * @returns
+ */
+export const sendSuccess = (res: Response, data: any) => {
+  return res.send({
+    code: 200,
+    msg: 'success',
+    data,
+  })
+}
+
+/**
+ * 处理数据校验
+ */
+export const sendError = (res: Response, errors: any[]) => {
+  const err: string[] = []
+  errors.forEach((item) => {
+    if (item.constraints) {
+      err.push(Object.values(item.constraints).join(','))
+    }
+  })
+  return res.send({
+    code: 400,
+    msg: err.join(','),
+    data: null,
+  })
+}
+
+export const sendFail = (res: Response, code: number, msg: string) => {
+  return res.status(200).send({
+    code,
+    msg,
+    data: null,
+  })
+}
+
+// 生成svg验证码
+export const getSvgCaptcha = (options?: object) => {
+  return svgCaptcha.create({
+    size: 4,
+    ignoreChars: '0o1i',
+    noise: 2,
+    width: 100,
+    height: 32,
+    color: true,
+    fontSize: 40,
+    background: '#ebf2fe',
+    ...options,
+  })
+}
+
+// 生成svg计算验证码
+export const getMathSvgCaptcha = (options?: object) => {
+  return svgCaptcha.createMathExpr({
+    mathMin: 1, // 随机数最小值
+    mathMax: 20, // 随机数最大值
+    width: 100,
+    height: 32,
+    noise: 2,
+    background: '#ebf2fe',
+    color: true,
+    fontSize: 40,
+    mathOperator: '+-',
+    ...options,
+  })
+}
+
+// 解析 IP 的工具函数
+export const getClientIp = (req: Request) => {
+  const ip =
+    req.headers['x-forwarded-for'] || // 代理常用头（可能包含多个 IP，取第一个）
+    req.headers['x-real-ip'] // 直接获取真实 IP
+  let ipStr: string | undefined
+  if (Array.isArray(ip)) {
+    ipStr = ip[0]
+  } else if (typeof ip === 'string') {
+    ipStr = ip
+  }
+  if (ipStr && ipStr.startsWith('::ffff:')) {
+    return ipStr.slice(7)
+  }
+  return ipStr || '未知 IP'
+}

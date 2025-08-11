@@ -1,0 +1,4 @@
+-- AlterTable
+ALTER TABLE `user` MODIFY `ip` VARCHAR(191) NULL,
+    MODIFY `post` VARCHAR(191) NULL,
+    MODIFY `gender` INTEGER NOT NULL DEFAULT 0;

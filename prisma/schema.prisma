@@ -1,0 +1,28 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model user {
+  id          Int      @id @default(autoincrement())
+  phone    String   @unique @db.VarChar(11) // 手机号(已实名)
+  password    String @db.Text
+  member      Int      @default(0)  // 会员(数字就是对应的等级)
+  create_time DateTime @default(now()) // 创建时间
+  update_time DateTime? // 更新时间
+  last_login_time DateTime? // 最后登录时间 
+  status      Int      @default(0) // 账号状态 (0正常 1禁用)
+  intro       String?  @db.VarChar(50) //简介
+  motto       String?  @db.VarChar(50) // 座右铭
+  avatar      String   @default("/static/image/default.webp") // 头像
+  ip String?  
+  post String? // 职位
+  gender Int @default(0)  // 0女 1男
+  balance Decimal @default(0) @db.Decimal(10,2) // 余额 保留两位小数
+  comment_status Int @default(0) // 0正常 1禁用评论功能
+}
