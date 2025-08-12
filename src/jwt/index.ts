@@ -2,7 +2,7 @@ import jwt from 'jsonwebtoken'
 import passport from 'passport'
 import { Strategy, ExtractJwt } from 'passport-jwt'
 import { RedisDB } from '../db/redis/index'
-import { inject } from 'node_modules/inversify/lib/cjs'
+import { inject } from 'inversify'
 export class JWT {
   private accessTokenSecret = process.env.ACCESSTOKENSECRET as any
   private refreshTokenSecret = process.env.REFRESHTOKENSECRET as any
