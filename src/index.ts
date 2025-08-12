@@ -71,26 +71,51 @@ wss.on('connection', (ws) => {
   ws.on('message', (message: string) => {
     const data = JSON.parse(message)
     if (data.type === 'login') {
-      if (connections[data.phone] && connections[data.phone].fingerprint) {
+      if (
+        connections[data.phone] &&
+        connections[data.phone].fingerprint !== data.fingerprint
+      ) {
         // 新设备登录
         connections[data.phone].socket.send(
           JSON.stringify({
             type: 'logout',
-            message: `您的账号于${new Date().toLocaleString()}在其他设备登录`,
+            message: `您的账号于${new Date().toLocaleString()}在其它设备登录,如不是本人操作,请及时修改密码`,
           })
         )
+        connections[data.phone].fingerprint = data.fingerprint
         connections[data.phone].socket.close()
         connections[data.phone].socket = ws
+        connections[data.phone].time = new Date().toLocaleString()
       } else {
         // 第一次登录
         connections[data.phone] = {
           socket: ws,
           phone: data.phone,
           fingerprint: data.fingerprint,
+          time: new Date().toLocaleString(),
         }
       }
     } else if (data.type === 'logout') {
       delete connections[data.phone]
+    } else if (data.type == 'open') {
+      if (!connections[data.phone]) return
+      // 处理用户处于登录状态但重新建立了新连接
+      connections[data.phone].socket = ws
+      connections[data.phone].time = new Date().toLocaleString()
+      if (
+        connections[data.phone] &&
+        connections[data.phone].fingerprint !== data.fingerprint
+      ) {
+        connections[data.phone].socket.send(
+          JSON.stringify({
+            type: 'logout',
+            message: `您的账号于${
+              connections[data.phone].time
+            }在其它设备登录,如不是本人操作,请及时修改密码`,
+          })
+        )
+      }
+      connections[data.phone].fingerprint = data.fingerprint
     }
   })
   ws.on('close', () => {
