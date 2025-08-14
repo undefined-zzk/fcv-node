@@ -3,8 +3,10 @@ import { Container } from 'inversify'
 import { InversifyExpressServer } from 'inversify-express-utils'
 import express from 'express'
 import dotenv from 'dotenv'
+import https from 'https'
+import fs from 'fs'
 import cors from 'cors'
-import { WebSocketServer } from 'ws'
+import WS, { WebSocketServer } from 'ws'
 import { PrismaClient } from '@prisma/client'
 import { PrismaDB } from './db/psimadb'
 import { RedisDB } from './db/redis'
@@ -57,6 +59,7 @@ server.setConfig((app) => {
 
 const app = server.build()
 
+// 开发调试 开启
 const port = process.env.PORT || 3000
 
 const appServer = app.listen(port, () => {
@@ -65,9 +68,25 @@ const appServer = app.listen(port, () => {
   )
 })
 
-const wss = new WebSocketServer({ server: appServer })
+//  部署上线开启下面代码，启用https
+// 读取SSL证书
+// const options = {
+//   key: fs.readFileSync(path.join(process.cwd(), '/ssl/zhouzhenkun.top.key')), // 私钥路径
+//   cert: fs.readFileSync(path.join(process.cwd(), '/ssl/zhouzhenkun.top.pem')), // 证书路径
+// }
+
+// const port = process.env.PORT
+// const appServer = https.createServer(options, app).listen(port, () => {
+//   console.log(
+//     `HTTPS Server is running on port: https://${process.env.BASE_URL}:${port}`
+//   )
+// })
+
+const wss = new WebSocketServer({ server: appServer, path: '/ws' })
 
 wss.on('connection', (ws) => {
+  const { startCheck, stopCheck } = heartCheck(ws)
+  startCheck()
   ws.on('message', (message: string) => {
     const data = JSON.parse(message)
     if (data.type === 'login') {
@@ -98,12 +117,15 @@ wss.on('connection', (ws) => {
     } else if (data.type === 'logout') {
       delete connections[data.phone]
     } else if (data.type == 'open') {
-      if (!connections[data.phone]) return
+      if (!connections[data.phone]) {
+        connections[data.phone] = {}
+      }
       // 处理用户处于登录状态但重新建立了新连接
       connections[data.phone].socket = ws
       connections[data.phone].time = new Date().toLocaleString()
       if (
         connections[data.phone] &&
+        connections[data.phone].fingerprint &&
         connections[data.phone].fingerprint !== data.fingerprint
       ) {
         connections[data.phone].socket.send(
@@ -116,9 +138,43 @@ wss.on('connection', (ws) => {
         )
       }
       connections[data.phone].fingerprint = data.fingerprint
+    } else if (data.type == 'heart') {
+      // 心跳
     }
   })
-  ws.on('close', () => {
-    // delConnection(ws)
+  ws.on('close', (e) => {
+    console.log('e', e)
+    stopCheck()
+    closeWs(ws)
   })
 })
+
+function heartCheck(ws: any) {
+  let heartInterval: any = null
+  return {
+    startCheck: () => {
+      heartInterval = setInterval(() => {
+        if (ws.readyState === WS.OPEN) {
+          ws.send(JSON.stringify({ type: 'heart', message: 'are you ok?' }))
+        } else {
+          clearInterval(heartInterval)
+          heartInterval = null
+        }
+      }, 30000)
+    },
+    stopCheck: () => {
+      clearInterval(heartInterval)
+      heartInterval = null
+    },
+  }
+}
+
+function closeWs(ws: any) {
+  const currentWs = Object.values(connections).find(
+    (item) => item.socket === ws
+  )
+  if (currentWs) {
+    delete connections[currentWs.phone]
+    currentWs.socket.close()
+  }
+}
