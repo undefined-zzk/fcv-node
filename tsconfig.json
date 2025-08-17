@@ -12,6 +12,7 @@
     ],
     "moduleResolution": "node",
     "experimentalDecorators": true,
+    "resolveJsonModule": true,
     "emitDecoratorMetadata": true,
     "skipLibCheck": true,
     "outDir": "./dist",

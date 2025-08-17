@@ -143,17 +143,5 @@ export const getMathSvgCaptcha = (options?: object) => {
 
 // 解析 IP 的工具函数
 export const getClientIp = (req: Request) => {
-  const ip =
-    req.headers['x-forwarded-for'] || // 代理常用头（可能包含多个 IP，取第一个）
-    req.headers['x-real-ip'] // 直接获取真实 IP
-  let ipStr: string | undefined
-  if (Array.isArray(ip)) {
-    ipStr = ip[0]
-  } else if (typeof ip === 'string') {
-    ipStr = ip
-  }
-  if (ipStr && ipStr.startsWith('::ffff:')) {
-    return ipStr.slice(7)
-  }
-  return ipStr || '未知 IP'
+  return req.headers.host || req.hostname || req.ip || ''
 }

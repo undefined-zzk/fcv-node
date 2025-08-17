@@ -1,4 +1,4 @@
-import { controller, httpGet, httpPost } from 'inversify-express-utils'
+import { controller, httpGet, httpPost, httpPut } from 'inversify-express-utils'
 import { inject } from 'inversify'
 import type { Request, Response } from 'express'
 import { UserService } from './service'
@@ -45,5 +45,9 @@ export class User {
   @httpGet('/userInfo', JWT.middlewareToken())
   private async getUserInfo(req: Request, res: Response) {
     return await this.userService.getUserInfo(req, res)
+  }
+  @httpPut('/update', JWT.middlewareToken())
+  private async updateUserInfo(req: Request, res: Response) {
+    return await this.userService.updateUserInfo(req, res)
   }
 }

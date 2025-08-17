@@ -11,6 +11,8 @@ import { PrismaClient } from '@prisma/client'
 import { PrismaDB } from './db/psimadb'
 import { RedisDB } from './db/redis'
 import { JWT } from './jwt'
+import path from 'path'
+import loggerMiddleware from './middleware/logger'
 // 声明全局类型以避免隐式 any 错误
 declare global {
   // 可以根据实际需要调整 connections 的类型
@@ -19,10 +21,12 @@ declare global {
 }
 // controll
 import './router/user/controller' // inversify-express-utils @5.0.0以后不需要手动绑定到容器
-
+import './router/thirdparty/controller'
+import './router/file/controller'
 // service
 import { UserService } from './router/user/service'
-import path from 'path'
+import { ThirdpartyService } from './router/thirdparty/service'
+import { UploadFileService } from './router/file/service'
 
 dotenv.config()
 
@@ -36,6 +40,8 @@ container.bind<PrismaClient>('PrismaClient').toFactory(() => {
 // 绑定到容器
 // container-start
 container.bind(UserService).to(UserService)
+container.bind(ThirdpartyService).to(ThirdpartyService)
+container.bind(UploadFileService).to(UploadFileService)
 container.bind(PrismaDB).to(PrismaDB)
 container.bind(RedisDB).to(RedisDB) // 初始化redis
 container.bind(JWT).to(JWT)
@@ -55,6 +61,7 @@ server.setConfig((app) => {
   app.use(express.urlencoded({ extended: false }))
   app.use(container.get(JWT).init())
   app.use('/static', express.static(path.join(process.cwd(), 'src/static')))
+  app.use(loggerMiddleware)
 })
 
 const app = server.build()
@@ -121,14 +128,12 @@ wss.on('connection', (ws) => {
         connections[data.phone] = {}
       }
       // 处理用户处于登录状态但重新建立了新连接
-      connections[data.phone].socket = ws
-      connections[data.phone].time = new Date().toLocaleString()
       if (
         connections[data.phone] &&
         connections[data.phone].fingerprint &&
         connections[data.phone].fingerprint !== data.fingerprint
       ) {
-        connections[data.phone].socket.send(
+        ws.send(
           JSON.stringify({
             type: 'logout',
             message: `您的账号于${
@@ -136,14 +141,14 @@ wss.on('connection', (ws) => {
             }在其它设备登录,如不是本人操作,请及时修改密码`,
           })
         )
+      } else {
+        connections[data.phone].fingerprint = data.fingerprint
       }
-      connections[data.phone].fingerprint = data.fingerprint
     } else if (data.type == 'heart') {
       // 心跳
     }
   })
   ws.on('close', (e) => {
-    console.log('e', e)
     stopCheck()
     closeWs(ws)
   })

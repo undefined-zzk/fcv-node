@@ -8,7 +8,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model user {
+model User {
   id          Int      @id @default(autoincrement())
   phone    String   @unique @db.VarChar(11) // 手机号(已实名)
   password    String @db.Text
@@ -24,7 +24,8 @@ model user {
   birthday String? @db.VarChar(10) // 生日
   company String? @db.VarChar(30) // 公司名称
   graduate_year Int? @default(1960) // 毕业年份
-  education Int? @default(0)
+  education String?  // 学校名称
+  major String? //专业名称
   create_time DateTime @default(now()) // 创建时间
   github String? @db.VarChar(100) // github地址
   update_time DateTime? // 更新时间
@@ -38,4 +39,19 @@ model user {
   gender Int @default(0)  // 0女 1男
   balance Decimal @default(0) @db.Decimal(10,2) // 余额 保留两位小数
   comment_status Int @default(0) // 0正常 1禁用评论功能
+  login_logs LoginLog[]
+}
+
+model LoginLog{
+ id Int  @id @default(autoincrement())
+ login_time DateTime @default(now()) // 登录时间
+ hostname String? @db.VarChar(50)// 主机名称
+ user_agent String?// 设备名单 
+ phone String
+ nickname String?
+ result String // 登录结果
+ fail_reason String? // 失败原因
+ role String // 角色
+ user User @relation(fields: [user_id],references: [id])
+ user_id Int 
 }

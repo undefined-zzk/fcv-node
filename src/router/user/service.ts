@@ -2,7 +2,7 @@ import type { Request, Response } from 'express'
 import { inject } from 'inversify'
 import { plainToClass } from 'class-transformer'
 import { validate } from 'class-validator'
-import { UserLoginDto, UserTokenDto } from './user.dto'
+import { UserLoginDto, UserTokenDto, UserUpdateDto } from './user.dto'
 import { PrismaDB } from '../../db/psimadb'
 import { RedisDB } from '../../db/redis'
 import { nanoid } from 'nanoid'
@@ -91,25 +91,62 @@ export class UserService {
     this.redisDB.redis.del(`code:${phone}`)
     return sendSuccess(res, '注册成功')
   }
-
+  private async injectLoginLog(req: Request, user: any, args: any) {
+    return await this.prismaDB.prisma.loginLog.create({
+      data: {
+        phone: user.phone,
+        login_time: new Date(),
+        hostname: getClientIp(req),
+        user_agent: req.headers['user-agent'],
+        nickname: user.nickname,
+        role: user.role?.toString(),
+        user_id: user.id,
+        ...args,
+      },
+    })
+  }
   public async login(req: Request, res: Response) {
     const userDto = plainToClass(UserLoginDto, req.body)
     const errors = await validate(userDto)
     if (errors.length > 0) return sendError(res, errors)
     const { phone, password, captcha, captchaKey } = userDto
-    if (!captchaKey) return sendFail(res, 400, '缺少验证码captchaKey')
-    const redisCode = await this.redisDB.redis.get(captchaKey)
-    if (!redisCode) return sendFail(res, 400, '验证码已过期')
-    if (redisCode !== captcha) return sendFail(res, 400, '验证码不正确')
     const user = await this.prismaDB.prisma.user.findUnique({
       where: { phone },
     })
-    if (!user) return sendFail(res, 400, '该手机号未注册')
-    if (user.status == 1) return sendFail(res, 403, '该账号已被禁用')
+    if (!user) {
+      return sendFail(res, 400, '该手机号未注册')
+    }
+    if (!captchaKey) return sendFail(res, 400, '缺少验证码captchaKey')
+    const redisCode = await this.redisDB.redis.get(captchaKey)
+    if (!redisCode) {
+      await this.injectLoginLog(req, user, {
+        result: 'fail',
+        fail_reason: '验证码已过期',
+      })
+      return sendFail(res, 400, '验证码已过期')
+    }
+    if (redisCode !== captcha) {
+      await this.injectLoginLog(req, user, {
+        result: 'fail',
+        fail_reason: '验证码不正确',
+      })
+      return sendFail(res, 400, '验证码不正确')
+    }
     const decryptedPassword = decryptWithPrivateKey(user.password)
     const clientPassword = decryptWithPrivateKey(password)
     if (decryptedPassword !== clientPassword) {
+      await this.injectLoginLog(req, user, {
+        result: 'fail',
+        fail_reason: '账号或者密码错误',
+      })
       return sendFail(res, 400, '账号或者密码错误')
+    }
+    if (user.status == 1) {
+      await this.injectLoginLog(req, user, {
+        result: 'fail',
+        fail_reason: '该账号已被禁用',
+      })
+      return sendFail(res, 403, '该账号已被禁用')
     }
     const redisRefreshToken = await this.redisDB.redis.get(
       `${user.id}:refreshToken`
@@ -122,6 +159,10 @@ export class UserService {
       this.redisDB.redis.del(`${user.id}:refreshToken`)
     }
     const { accessToken, refreshToken } = this.jwt.getTokens(user)
+    await this.injectLoginLog(req, user, {
+      result: 'success',
+      fail_reason: '',
+    })
     return sendSuccess(res, {
       accessToken,
       refreshToken,
@@ -186,5 +227,30 @@ export class UserService {
     })
     if (!userInfo) return sendFail(res, 400, '用户信息不存在')
     return sendSuccess(res, userInfo)
+  }
+  public async updateUserInfo(req: Request, res: Response) {
+    const userUpdateDto = plainToClass(UserUpdateDto, req.body, {
+      excludeExtraneousValues: true,
+    })
+    const errors = await validate(userUpdateDto)
+    if (errors.length > 0) return sendError(res, errors)
+    const user = req.user as any
+    try {
+      await this.prismaDB.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          ...userUpdateDto,
+          update_time: new Date(),
+        },
+      })
+      const userInfo = await this.prismaDB.prisma.user.findUnique({
+        where: { id: user.id },
+        omit: { password: true, id: true },
+      })
+      return sendSuccess(res, userInfo)
+    } catch (error) {
+      console.log('error', error)
+      return sendFail(res, 400, '更新失败')
+    }
   }
 }
