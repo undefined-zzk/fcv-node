@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express'
 import { inject } from 'inversify'
 import { PrismaDB } from '../../db/psimadb'
-import { sendSuccess } from 'src/utils'
+import { sendFail, sendSuccess } from 'src/utils'
 export class UploadFileService {
   constructor(@inject(PrismaDB) private prismaDB: PrismaDB) {}
   public async uploadAvatarFile(
@@ -17,6 +17,26 @@ export class UploadFileService {
       where: { id: user.id },
       data: { avatar: path },
     })
+    return sendSuccess(res, path)
+  }
+
+  public async uploadFile(
+    req: Request,
+    res: Response,
+    imageTypes: string[],
+    zipTypes: string[]
+  ) {
+    if (!req.file) return sendFail(res, 400, '文件不能为空或格式不支持')
+    if (
+      !imageTypes.includes(req.file.mimetype) &&
+      !zipTypes.includes(req.file.mimetype)
+    ) {
+      return sendFail(res, 400, '文件格式错误')
+    }
+    let path = `/static/image/${req.file.filename}`
+    if (zipTypes.includes(req.file.mimetype)) {
+      path = `/static/zips/${req.file.filename}`
+    }
     return sendSuccess(res, path)
   }
 }

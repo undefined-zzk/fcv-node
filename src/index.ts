@@ -23,10 +23,12 @@ declare global {
 import './router/user/controller' // inversify-express-utils @5.0.0以后不需要手动绑定到容器
 import './router/thirdparty/controller'
 import './router/file/controller'
+import './router/article/controller'
 // service
 import { UserService } from './router/user/service'
 import { ThirdpartyService } from './router/thirdparty/service'
 import { UploadFileService } from './router/file/service'
+import { ArticleService } from './router/article/service'
 
 dotenv.config()
 
@@ -42,6 +44,7 @@ container.bind<PrismaClient>('PrismaClient').toFactory(() => {
 container.bind(UserService).to(UserService)
 container.bind(ThirdpartyService).to(ThirdpartyService)
 container.bind(UploadFileService).to(UploadFileService)
+container.bind(ArticleService).to(ArticleService)
 container.bind(PrismaDB).to(PrismaDB)
 container.bind(RedisDB).to(RedisDB) // 初始化redis
 container.bind(JWT).to(JWT)

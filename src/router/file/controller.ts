@@ -1,4 +1,4 @@
-import { controller, httpPut } from 'inversify-express-utils'
+import { controller, httpPut, httpPost } from 'inversify-express-utils'
 import { inject } from 'inversify'
 import type { NextFunction, Request, Response } from 'express'
 import { UploadFileService } from './service'
@@ -27,7 +27,7 @@ const storage = multer.diskStorage({
     if (imageTypes.includes(file.mimetype)) {
       cb(null, process.cwd() + '/src/static/image')
     } else if (zipTypes.includes(file.mimetype)) {
-      cb(null, process.cwd() + 'src/static/zip')
+      cb(null, process.cwd() + '/src/static/zips')
     }
   },
   filename: function (req, file, cb) {
@@ -63,6 +63,15 @@ export class FileController {
   )
   uploadAvatarFile(req: Request, res: Response) {
     return this.uploadFileService.uploadAvatarFile(req, res, imageTypes)
+  }
+  @httpPost(
+    '/upload',
+    upload.single('file'),
+    multerErrMiddleware,
+    JWT.middlewareToken()
+  )
+  uploadFile(req: Request, res: Response) {
+    return this.uploadFileService.uploadFile(req, res, imageTypes, zipTypes)
   }
 }
 

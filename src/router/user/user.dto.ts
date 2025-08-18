@@ -27,6 +27,9 @@ export class UserUpdateDto {
   update_time?: string
   @Expose()
   @IsOptional()
+  gender?: number
+  @Expose()
+  @IsOptional()
   last_login_time?: string
   @Expose()
   @IsOptional()

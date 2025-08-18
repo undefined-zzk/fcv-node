@@ -9,49 +9,240 @@ datasource db {
 }
 
 model User {
-  id          Int      @id @default(autoincrement())
-  phone    String   @unique @db.VarChar(11) // 手机号(已实名)
-  password    String @db.Text
-  member      Int      @default(0)  // 会员(数字就是对应的等级)
-  nickname String? @db.VarChar(10) // 昵称
-  role Json @default("[\"user\"]")// 角色 
-  attention Int? @default(0) // 关注
-  fans Int? @default(0) // 粉丝
-  integral Int? @default(0) // 积分
-  praise Int? @default(0) // 获赞数
-  rank Int? @default(0) // 排名
-  city String? @db.VarChar(20) // 城市
-  birthday String? @db.VarChar(10) // 生日
-  company String? @db.VarChar(30) // 公司名称
-  graduate_year Int? @default(1960) // 毕业年份
-  education String?  // 学校名称
-  major String? //专业名称
-  create_time DateTime @default(now()) // 创建时间
-  github String? @db.VarChar(100) // github地址
-  update_time DateTime? // 更新时间
-  last_login_time DateTime? // 最后登录时间 
-  status      Int      @default(0) // 账号状态 (0正常 1禁用)
-  intro       String?  @db.VarChar(50) //简介
-  motto       String?  @db.VarChar(50) // 座右铭
-  avatar      String   @default("/static/image/default.webp") // 头像
-  ip String?  
-  post String? // 岗位
-  gender Int @default(0)  // 0女 1男
-  balance Decimal @default(0) @db.Decimal(10,2) // 余额 保留两位小数
-  comment_status Int @default(0) // 0正常 1禁用评论功能
-  login_logs LoginLog[]
+  id                    Int                  @id @default(autoincrement())
+  phone                 String               @unique @db.VarChar(11) // 手机号(已实名)
+  password              String               @db.Text
+  member                Int                  @default(0) // 会员(数字就是对应的等级)
+  nickname              String?              @db.VarChar(10) // 昵称
+  role                  Json                 @default("[\"user\"]") // 角色 
+  attention             Int?                 @default(0) // 关注
+  fans                  Int?                 @default(0) // 粉丝
+  integral              Int?                 @default(0) // 积分
+  praise                Int?                 @default(0) // 获赞数
+  rank                  Int?                 @default(0) // 排名
+  city                  String?              @db.VarChar(20) // 城市
+  birthday              String?              @db.VarChar(10) // 生日
+  company               String?              @db.VarChar(30) // 公司名称
+  graduate_year         Int?                 @default(1960) // 毕业年份
+  education             String? // 学校名称
+  major                 String? //专业名称
+  create_time           DateTime             @default(now()) // 创建时间
+  github                String?              @db.VarChar(100) // github地址
+  update_time           DateTime? // 更新时间
+  last_login_time       DateTime? // 最后登录时间 
+  status                Int                  @default(0) // 账号状态 (0正常 1禁用)
+  intro                 String?              @db.VarChar(50) //简介
+  motto                 String?              @db.VarChar(50) // 座右铭
+  avatar                String               @default("/static/image/default.webp") // 头像
+  ip                    String?
+  post                  String? // 岗位
+  gender                Int                  @default(0) // 0女 1男
+  balance               Decimal              @default(0) @db.Decimal(10, 2) // 余额 保留两位小数
+  comment_status        Int                  @default(0) // 0正常 1禁用评论功能
+  letter_status         Int                  @default(0) // 0正常 1禁用私信功能
+  login_logs            LoginLog[]
+  articles              Article[]
+  article_comments      ArticleComment[]
+  attention_fans        AttentionFans[]
+  integrals             Integral[]
+  accounts              Account[]
+  frame_comments        FrameComment[]
+  article_like_collects ArticleLikeCollect[]
+  private_letter        PrivateLetter[]
+  special_column        SpecialColumn[]
 }
 
-model LoginLog{
- id Int  @id @default(autoincrement())
- login_time DateTime @default(now()) // 登录时间
- hostname String? @db.VarChar(50)// 主机名称
- user_agent String?// 设备名单 
- phone String
- nickname String?
- result String // 登录结果
- fail_reason String? // 失败原因
- role String // 角色
- user User @relation(fields: [user_id],references: [id])
- user_id Int 
+// 登录日志
+model LoginLog {
+  id          Int      @id @default(autoincrement())
+  login_time  DateTime @default(now()) // 登录时间
+  hostname    String?  @db.VarChar(50) // 主机名称
+  user_agent  String? // 设备名单 
+  phone       String
+  nickname    String?
+  result      String // 登录结果
+  fail_reason String? // 失败原因
+  role        String // 角色
+  user        User     @relation(fields: [user_id], references: [id])
+  user_id     Int
+}
+
+// 文章
+model Article {
+  id                    Int                  @id @default(autoincrement())
+  title                 String               @db.VarChar(20) // 标题
+  content               String               @db.LongText // 内容
+  cover                 String? // 文章封面
+  desc                  String? // 文章描述
+  create_time           DateTime             @default(now()) // 创建时间
+  update_time           DateTime             @updatedAt // 更新时间
+  likes                 Int                  @default(0) // 点赞数
+  no_likes              Int                  @default(0) // 踩踏数
+  collects              Int                  @default(0) // 收藏数
+  reads                 Int                  @default(0) // 阅读量
+  status                Int                  @default(0) // 0 正常 1 封禁
+  user                  User                 @relation(fields: [user_id], references: [id])
+  user_id               Int
+  tag                   Tag                  @relation(fields: [tag_id], references: [id])
+  tag_id                Int
+  articles              ArticleComment[]
+  article_like_collects ArticleLikeCollect[]
+  special_columns       SpecialColumn[]      @relation("SpecialColumnToArticle")
+
+  @@index([user_id]) //添加索引提升查询性能
+}
+
+// 文章评论表
+model ArticleComment {
+  id          Int      @id @default(autoincrement())
+  pid         Int      @default(0) // 评论父级id
+  content     String   @db.Text //评论内容 前端限制1000长度
+  create_time DateTime @default(now())
+  update_time DateTime @updatedAt
+  status      Int      @default(1) // 0通过 1审核中 2不通过 
+  user        User     @relation(fields: [user_id], references: [id])
+  user_id     Int
+  article     Article  @relation(fields: [article_id], references: [id])
+  article_id  Int
+
+  @@index([user_id])
+  @@index([article_id])
+}
+
+// 文章收藏与点赞与用户关系表
+model ArticleLikeCollect {
+  id         Int     @id @default(autoincrement())
+  user       User    @relation(fields: [user_id], references: [id])
+  user_id    Int
+  article    Article @relation(fields: [article_id], references: [id])
+  article_id Int
+  type       Int // 0 点赞 1 收藏
+}
+
+// 标签
+model Tag {
+  id          Int         @id @default(autoincrement())
+  name        String      @db.VarChar(20) // 名字长度20
+  hot         Int         @default(0) // 热度值
+  create_time DateTime    @default(now())
+  update_time DateTime    @updatedAt
+  status      Int         @default(0) // 0 正常 1关闭
+  articles    Article[]
+  framefuncs  FrameFunc[]
+}
+
+// 账户表和记录表
+model Account {
+  id         Int     @id @default(autoincrement())
+  balance    Decimal @db.Decimal(10, 2) //余额
+  money      Decimal @db.Decimal(10, 2) // 当前操作的金额值
+  type       Int     @default(0) // 0充值 1支出
+  subject    String // 金额对象主体
+  subject_id Int // 主体id
+  user       User    @relation(fields: [user_id], references: [id])
+  user_id    Int
+
+  @@index([user_id])
+}
+
+// 用户之间的粉丝、关注关系表
+model AttentionFans {
+  id           Int      @id @default(autoincrement())
+  create_time  DateTime @default(now())
+  update_time  DateTime @updatedAt
+  attention_id Int // 关注id
+  user         User     @relation(fields: [user_id], references: [id])
+  user_id      Int // 用户id
+  status       Int      @default(1) // 0关注 1 没关注
+
+  @@index([user_id])
+}
+
+//用户的积分关系表
+model Integral {
+  id         Int      @id @default(autoincrement())
+  user       User     @relation(fields: [user_id], references: [id])
+  user_id    Int // 用户id
+  integral   Int // 积分数量
+  type       Int      @default(0) // 0加积分 1减积分
+  source     String // 来源
+  source_id  Int //来源id
+  creat_time DateTime @default(now())
+
+  @@index([user_id])
+}
+
+// 框架功能表
+model FrameFunc {
+  id             Int            @id @default(autoincrement())
+  create_time    DateTime       @default(now())
+  update_time    DateTime       @updatedAt
+  name           String         @db.VarChar(20) // 功能名称
+  desc           String         @db.VarChar(200) // 功能描述
+  likes          Int            @default(0) // 点赞数
+  collects       Int            @default(0) // 收藏数
+  code           String         @db.Text // 功能代码
+  mentality      String         @db.Text // 功能思路
+  status         Int // 0正常 1升级中 2 下线
+  tags           Tag            @relation(fields: [tag_id], references: [id])
+  tag_id         Int // 标签id
+  frame_comments FrameComment[]
+}
+
+// 功能用户评价表
+model FrameComment {
+  id          Int       @id @default(autoincrement())
+  pid         Int       @default(0) // 评论父级id
+  content     String    @db.Text //用户评价 前端做个1000限制
+  create_time DateTime  @default(now())
+  status      Int       @default(1) // 0正常 1 审核中 2 审核不通过
+  likes       Int       @default(0) // 该评论的点赞数量
+  user        User      @relation(fields: [user_id], references: [id])
+  user_id     Int
+  frame_funcs FrameFunc @relation(fields: [func_id], references: [id])
+  func_id     Int
+}
+
+// 私信表
+model PrivateLetter {
+  id          Int      @id @default(autoincrement())
+  content     String   @db.Text // 消息内容 限制 1000字
+  create_time DateTime @default(now())
+  user        User     @relation(fields: [user_id], references: [id])
+  user_id     Int
+  target_id   Int // 私信的用户id
+  status      Int // 0正常 1不可见
+}
+
+// 举报类型表
+model Appeal {
+  id            Int            @id @default(autoincrement())
+  name          String         @db.VarChar(10) // 名称
+  create_time   DateTime       @default(now())
+  update_time   DateTime       @updatedAt
+  status        Int            @default(0) // 0 正常 1禁用
+  appeal_record AppealRecord[] @relation("AppealToRecord")
+}
+
+// 评论举报记录表
+model AppealRecord {
+  id        Int      @id @default(autoincrement())
+  type      Int // 评论类型 0私信 1功能评论 2文章评论
+  content   String?  @db.VarChar(200) // 详情
+  status    Int      @default(0) // 0待处理 1 已处理
+  appeal    Appeal[] @relation("AppealToRecord")
+  target_id Int // 被举报内容的id
+}
+
+// 专栏
+model SpecialColumn {
+  id          Int       @id @default(autoincrement())
+  name        String    @db.VarChar(20) // 名称
+  cover       String? // 专栏封面
+  desc        String    @db.VarChar(200) // 简介
+  user        User      @relation(fields: [user_id], references: [id])
+  user_id     Int
+  articles    Article[] @relation("SpecialColumnToArticle")
+  create_time DateTime  @default(now())
+  update_time DateTime  @default(now())
 }
