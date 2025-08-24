@@ -132,44 +132,48 @@ export class UserService {
       })
       return sendFail(res, 400, '验证码不正确')
     }
-    const decryptedPassword = decryptWithPrivateKey(user.password)
-    const clientPassword = decryptWithPrivateKey(password)
-    if (decryptedPassword !== clientPassword) {
-      await this.injectLoginLog(req, user, {
-        result: 'fail',
-        fail_reason: '账号或者密码错误',
+    try {
+      const decryptedPassword = decryptWithPrivateKey(user.password)
+      const clientPassword = decryptWithPrivateKey(password)
+      if (decryptedPassword !== clientPassword) {
+        await this.injectLoginLog(req, user, {
+          result: 'fail',
+          fail_reason: '账号或者密码错误',
+        })
+        return sendFail(res, 400, '账号或者密码错误')
+      }
+      if (user.status == 1) {
+        await this.injectLoginLog(req, user, {
+          result: 'fail',
+          fail_reason: '该账号已被禁用',
+        })
+        return sendFail(res, 403, '该账号已被禁用')
+      }
+      const redisRefreshToken = await this.redisDB.redis.get(
+        `${user.id}:refreshToken`
+      )
+      await this.prismaDB.prisma.user.update({
+        where: { id: user.id },
+        data: { last_login_time: new Date() },
       })
-      return sendFail(res, 400, '账号或者密码错误')
-    }
-    if (user.status == 1) {
+      if (redisRefreshToken) {
+        this.redisDB.redis.del(`${user.id}:refreshToken`)
+      }
+      const { accessToken, refreshToken } = this.jwt.getTokens(user)
       await this.injectLoginLog(req, user, {
-        result: 'fail',
-        fail_reason: '该账号已被禁用',
+        result: 'success',
+        fail_reason: '',
       })
-      return sendFail(res, 403, '该账号已被禁用')
+      return sendSuccess(res, {
+        accessToken,
+        refreshToken,
+        expiresIn: Number(process.env.EXPIRESIN),
+        expiresTime:
+          Date.now() + Number(process.env.REFRESHTOKENEXPIRESIN_REDIS) * 1000,
+      })
+    } catch (error: any) {
+      return sendFail(res, 500, error.message)
     }
-    const redisRefreshToken = await this.redisDB.redis.get(
-      `${user.id}:refreshToken`
-    )
-    await this.prismaDB.prisma.user.update({
-      where: { id: user.id },
-      data: { last_login_time: new Date() },
-    })
-    if (redisRefreshToken) {
-      this.redisDB.redis.del(`${user.id}:refreshToken`)
-    }
-    const { accessToken, refreshToken } = this.jwt.getTokens(user)
-    await this.injectLoginLog(req, user, {
-      result: 'success',
-      fail_reason: '',
-    })
-    return sendSuccess(res, {
-      accessToken,
-      refreshToken,
-      expiresIn: Number(process.env.EXPIRESIN),
-      expiresTime:
-        Date.now() + Number(process.env.REFRESHTOKENEXPIRESIN_REDIS) * 1000,
-    })
   }
   public async refreshToken(req: Request, res: Response) {
     const userTokenDto = plainToClass(UserTokenDto, req.body)
@@ -209,24 +213,46 @@ export class UserService {
   public async logout(req: Request, res: Response) {
     const user = req.user as any
     this.redisDB.redis.del(`${user.id}:refreshToken`)
-    res.clearCookie('fcv_token', {
-      httpOnly: true,
-      path: '/',
-    })
-    res.clearCookie('fcv_refresh_token', {
-      httpOnly: true,
-      path: '/api',
-    })
     return sendSuccess(res, '退出成功')
   }
   public async getUserInfo(req: Request, res: Response) {
-    const user = req.user as any
+    let user = req.user as any
+    if (req.params.id) {
+      user.id = +req.params.id
+    }
     const userInfo = await this.prismaDB.prisma.user.findUnique({
       where: { id: user.id },
       omit: { password: true, id: true },
+      include: {
+        accounts: {
+          where: {
+            user_id: user.id,
+          },
+          select: {
+            balance: true,
+          },
+        },
+        followers: true,
+        following: true,
+      },
     })
     if (!userInfo) return sendFail(res, 400, '用户信息不存在')
-    return sendSuccess(res, userInfo)
+    if (userInfo.status === 1) return sendFail(res, 403, '该账号已被禁用')
+    const balance = +userInfo.accounts[0]?.balance || 0
+    const fans = userInfo.following.length
+    const attention = userInfo.followers.length
+    // const integral=0 //积分
+    // const praise=0 //获赞数
+    // const rank=0 //排名
+    return sendSuccess(res, {
+      ...userInfo,
+      balance,
+      accounts: [],
+      followers: [],
+      following: [],
+      fans,
+      attention,
+    })
   }
   public async updateUserInfo(req: Request, res: Response) {
     const userUpdateDto = plainToClass(UserUpdateDto, req.body, {
@@ -236,6 +262,11 @@ export class UserService {
     if (errors.length > 0) return sendError(res, errors)
     const user = req.user as any
     try {
+      const findUser = await this.prismaDB.prisma.user.findUnique({
+        where: { id: user.id },
+      })
+      if (!findUser) return sendFail(res, 400, '用户信息不存在')
+      if (findUser.status === 1) return sendFail(res, 403, '该账号已被禁用')
       await this.prismaDB.prisma.user.update({
         where: { id: user.id },
         data: {

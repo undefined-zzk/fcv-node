@@ -24,11 +24,17 @@ import './router/user/controller' // inversify-express-utils @5.0.0以后不需�
 import './router/thirdparty/controller'
 import './router/file/controller'
 import './router/article/controller'
+import './router/tag/controller'
+import './router/framefunc/controller'
+import './router/funcclassify/controller'
 // service
 import { UserService } from './router/user/service'
 import { ThirdpartyService } from './router/thirdparty/service'
 import { UploadFileService } from './router/file/service'
 import { ArticleService } from './router/article/service'
+import { TagService } from './router/tag/service'
+import { FrameFuncService } from './router/framefunc/service'
+import { FuncClassifyService } from './router/funcclassify/service'
 
 dotenv.config()
 
@@ -45,6 +51,9 @@ container.bind(UserService).to(UserService)
 container.bind(ThirdpartyService).to(ThirdpartyService)
 container.bind(UploadFileService).to(UploadFileService)
 container.bind(ArticleService).to(ArticleService)
+container.bind(TagService).to(TagService)
+container.bind(FrameFuncService).to(FrameFuncService)
+container.bind(FuncClassifyService).to(FuncClassifyService)
 container.bind(PrismaDB).to(PrismaDB)
 container.bind(RedisDB).to(RedisDB) // 初始化redis
 container.bind(JWT).to(JWT)

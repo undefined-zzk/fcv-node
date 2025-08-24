@@ -1,4 +1,10 @@
-import { controller, httpPut, httpPost } from 'inversify-express-utils'
+import {
+  controller,
+  httpPut,
+  httpPost,
+  httpDelete,
+  httpGet,
+} from 'inversify-express-utils'
 import { inject } from 'inversify'
 import type { NextFunction, Request, Response } from 'express'
 import { UploadFileService } from './service'
@@ -7,6 +13,7 @@ import multer from 'multer'
 import { v4 as uuid } from 'uuid'
 import { extname } from 'path'
 import { sendFail } from '../../utils/index'
+import { authMiddleware } from '../../middleware/auth'
 
 const imageTypes = [
   'image/png',
@@ -72,6 +79,24 @@ export class FileController {
   )
   uploadFile(req: Request, res: Response) {
     return this.uploadFileService.uploadFile(req, res, imageTypes, zipTypes)
+  }
+
+  @httpPost('/createbanner', JWT.middlewareToken(), authMiddleware)
+  createBanner(req: Request, res: Response) {
+    return this.uploadFileService.createBanner(req, res)
+  }
+
+  @httpPut('/updatebanner', JWT.middlewareToken(), authMiddleware)
+  updateBanner(req: Request, res: Response) {
+    return this.uploadFileService.updateBanner(req, res)
+  }
+  @httpDelete('/deletebanner', JWT.middlewareToken(), authMiddleware)
+  deleteBanner(req: Request, res: Response) {
+    return this.uploadFileService.deleteBanner(req, res)
+  }
+  @httpGet('/bannerlist')
+  getBannerList(req: Request, res: Response) {
+    return this.uploadFileService.getBannerList(req, res)
   }
 }
 

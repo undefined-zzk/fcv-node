@@ -1,13 +1,50 @@
-import { controller, httpGet, httpPut, httpPost } from 'inversify-express-utils'
+import {
+  controller,
+  httpGet,
+  httpPut,
+  httpPost,
+  httpDelete,
+} from 'inversify-express-utils'
 import { inject } from 'inversify'
 import type { Request, Response } from 'express'
 import { JWT } from '../../jwt/index'
 import { ArticleService } from './service'
+import { authMiddleware } from '../../middleware/auth'
 @controller('/article')
 export class ArticleController {
   constructor(@inject(ArticleService) private articleService: ArticleService) {}
-  @httpPost('/publish')
+  @httpPost('/publish', JWT.middlewareToken())
   public async publishArticle(req: Request, res: Response) {
     return this.articleService.publishArticle(req, res)
+  }
+  @httpPut('/update', JWT.middlewareToken())
+  public async upadateArticle(req: Request, res: Response) {
+    return this.articleService.upadateArticle(req, res)
+  }
+  @httpDelete('/delete', JWT.middlewareToken())
+  public async deleteArticle(req: Request, res: Response) {
+    return this.articleService.deleteArticle(req, res)
+  }
+  @httpGet('/list', JWT.middlewareToken())
+  public async getArticleList(req: Request, res: Response) {
+    return this.articleService.getArticleList(req, res)
+  }
+  @httpGet('/detail/:id', JWT.middlewareToken())
+  public async getArticleDetail(req: Request, res: Response) {
+    return this.articleService.getArticleDetail(req, res)
+  }
+
+  @httpPut('/updatestatus', JWT.middlewareToken(), authMiddleware)
+  public async updateStatus(req: Request, res: Response) {
+    return this.articleService.updateStatus(req, res)
+  }
+  // 点赞和收藏和踩踏
+  @httpPost('/likecollect', JWT.middlewareToken())
+  public async likecollect(req: Request, res: Response) {
+    return this.articleService.likecollect(req, res)
+  }
+  @httpPost('/comment', JWT.middlewareToken())
+  public async common(req: Request, res: Response) {
+    return this.articleService.addComment(req, res)
   }
 }

@@ -42,7 +42,7 @@ export class User {
   private async logout(req: Request, res: Response) {
     return await this.userService.logout(req, res)
   }
-  @httpGet('/userInfo', JWT.middlewareToken())
+  @httpGet('/userInfo/:id?', JWT.middlewareToken())
   private async getUserInfo(req: Request, res: Response) {
     return await this.userService.getUserInfo(req, res)
   }

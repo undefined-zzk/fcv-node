@@ -39,6 +39,7 @@ export class JWT {
       id: user.id,
       phone: user.phone,
       status: user.status,
+      role: user.role,
     }
     const accessToken = this.signAccessToken(tokenOptioins)
     const refreshToken = this.signRefreshToken(tokenOptioins)

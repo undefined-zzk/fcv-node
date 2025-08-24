@@ -3,6 +3,7 @@ import jsyaml from 'js-yaml'
 import fs from 'fs'
 import crypto from 'crypto'
 import svgCaptcha from 'svg-captcha'
+import { Page } from 'src/types'
 // 生成公钥和私钥
 export const generateKeyPair = () => {
   const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', {
@@ -144,4 +145,33 @@ export const getMathSvgCaptcha = (options?: object) => {
 // 解析 IP 的工具函数
 export const getClientIp = (req: Request) => {
   return req.headers.host || req.hostname || req.ip || ''
+}
+const convertToIsoFormat = (dateTimeStr: string) => {
+  // 把空格替换为 T，添加时区标识 Z（UTC）
+  return new Date(dateTimeStr.replace(' ', 'T') + 'Z').toISOString()
+}
+
+// 处理分页
+export const handlePage = (page: Page) => {
+  let pageNum = 1
+  let pageSize = 20
+  let sort: 'asc' | 'desc' = 'desc'
+  if (page.pageNum && page.pageNum > 0) pageNum = page.pageNum
+  if (page.pageSize && page.pageSize > 0) pageSize = page.pageSize
+  if (page.sort && ['asc', 'desc'].includes(page.sort)) sort = page.sort
+  if (page.title) page.title = page.title.trim()
+  if (page.startTime) page.startTime = convertToIsoFormat(page.startTime.trim())
+  if (page.endTime) page.endTime = convertToIsoFormat(page.endTime.trim())
+  if (page.status) page.status = +page.status
+  if (page.all) page.all = +page.all
+  page.pageNum = +pageNum
+  page.pageSize = +pageSize
+  page.sort = sort
+  return page
+}
+
+// 判断是不是admin用户
+export const isAdmin = (role: string[]) => {
+  if (!role) return false
+  return role.includes('admin')
 }
