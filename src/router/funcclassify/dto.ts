@@ -19,4 +19,6 @@ export class AddFuncClassifyDto {
   cover!: string
   @Transform(({ value }) => Number(value))
   sort?: number
+  @IsNotEmpty({ message: '描述不能为空' })
+  desc!: string
 }

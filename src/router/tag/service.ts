@@ -1,7 +1,13 @@
 import { inject } from 'inversify'
 import { plainToClass } from 'class-transformer'
 import { isNumber, validate } from 'class-validator'
-import { sendError, sendSuccess, sendFail, handlePage } from '../../utils/index'
+import {
+  sendError,
+  sendSuccess,
+  sendFail,
+  handlePage,
+  isAdmin,
+} from '../../utils/index'
 import type { Request, Response } from 'express'
 import { PrismaDB } from '../../db/psimadb'
 import type { Page } from '../../types/index'
@@ -11,7 +17,7 @@ export class TagService {
   constructor(@inject(PrismaDB) private prismaDB: PrismaDB) {}
   public async getTags(req: Request, res: Response) {
     const query = req.query as unknown as Page
-    const { pageNum, pageSize, sort, startTime, endTime, all } =
+    const { pageNum, pageSize, sort, startTime, endTime, all, status } =
       handlePage(query)
     let result = []
     const where = {
@@ -20,11 +26,13 @@ export class TagService {
         gte: startTime || undefined,
         lte: endTime || undefined,
       },
+      status,
     }
     const orderBy = [{ hot: sort }, { create_time: sort }]
+    const user = req.user as any
     const total = await this.prismaDB.prisma.tag.count({
       where: {
-        status: 0,
+        status: isAdmin(user?.role) ? undefined : 0,
       },
     })
     if (all > 0) {

@@ -17,7 +17,7 @@ export class FrameFuncService {
   constructor(@inject(PrismaDB) private prismaDB: PrismaDB) {}
   public async getFrameFuncService(req: Request, res: Response) {
     const query = req.query as unknown as Page
-    const { pageNum, pageSize, sort, startTime, endTime, all } =
+    const { pageNum, pageSize, sort, startTime, endTime, all, status } =
       handlePage(query)
     let result = []
     const where = {
@@ -26,8 +26,9 @@ export class FrameFuncService {
         gte: startTime || undefined,
         lte: endTime || undefined,
       },
+      status,
     }
-    const orderBy = [{ create_time: sort }]
+    const orderBy = [{ sort }, { create_time: sort }]
     const user = req.user as any
     const total = await this.prismaDB.prisma.frameFunc.count({
       where: {
@@ -91,13 +92,14 @@ export class FrameFuncService {
     const exits = await this.prismaDB.prisma.frameFunc.findFirst({
       where: {
         name: createFrameFuncDto.name,
+        id: { not: +createFrameFuncDto.id },
       },
       distinct: ['name'],
     })
     if (exits) {
       return sendFail(res, 400, '名称已存在')
     }
-    const { id, ...updateDto } = createFrameFuncDto
+    const { id, classify_id, ...updateDto } = createFrameFuncDto
     const reuslt = await this.prismaDB.prisma.frameFunc.update({
       where: {
         id: +id,
@@ -106,6 +108,9 @@ export class FrameFuncService {
         ...updateDto,
         tags: {
           connect: createFrameFuncDto.tags.map((tagId) => ({ id: +tagId })),
+        },
+        frame_classify: {
+          connect: { id: +classify_id },
         },
       },
     })

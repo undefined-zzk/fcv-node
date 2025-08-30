@@ -13,7 +13,7 @@ import { JWT } from '../../jwt/index'
 @controller('/tag')
 export class TagController {
   constructor(@inject(TagService) private tagService: TagService) {}
-  @httpGet('/list')
+  @httpGet('/list', JWT.middlewareToken())
   public async getTags(req: Request, res: Response) {
     return this.tagService.getTags(req, res)
   }

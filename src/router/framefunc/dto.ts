@@ -10,6 +10,8 @@ export class CreateFrameFuncDto {
   desc!: string
   @IsNotEmpty({ message: '代码不能为空' })
   code!: string
+  @IsNotEmpty({ message: '封面不能为空' })
+  cover!: string
   @IsNotEmpty({ message: '思维方式不能为空' })
   mentality!: string
   @IsNotEmpty({ message: '标签要是数组不能为空' })
@@ -23,6 +25,14 @@ export class CreateFrameFuncDto {
   @IsNotEmpty({ message: '分类id不能为空' })
   classify_id!: number
   id?: number
+  @Transform(({ value }) => {
+    const val = Number(value)
+    if (val > 1) {
+      return 1
+    }
+    return val
+  })
+  status?: number
 }
 
 export class UpdateStatusDto {

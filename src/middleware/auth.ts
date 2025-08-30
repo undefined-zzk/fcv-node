@@ -6,7 +6,7 @@ export const authMiddleware = async (
   next: NextFunction
 ) => {
   const user = req.user as any
-  if (isAdmin(user.role)) {
+  if (!isAdmin(user.role)) {
     return sendFail(res, 403, '权限不足')
   }
   next()

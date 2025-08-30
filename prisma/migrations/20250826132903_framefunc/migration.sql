@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE `tag` ADD COLUMN `sort` INTEGER NOT NULL DEFAULT 0;

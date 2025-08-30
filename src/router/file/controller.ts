@@ -74,8 +74,8 @@ export class FileController {
   @httpPost(
     '/upload',
     upload.single('file'),
-    multerErrMiddleware,
-    JWT.middlewareToken()
+    multerErrMiddleware
+    // JWT.middlewareToken()
   )
   uploadFile(req: Request, res: Response) {
     return this.uploadFileService.uploadFile(req, res, imageTypes, zipTypes)

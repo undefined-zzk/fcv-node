@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE `framefunc` ADD COLUMN `sort` INTEGER NOT NULL DEFAULT 0;

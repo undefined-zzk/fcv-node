@@ -126,6 +126,7 @@ model Tag {
   hot         Int         @default(0) // 热度值
   create_time DateTime    @default(now())
   update_time DateTime?   @updatedAt
+  sort        Int         @default(0) // 排序
   status      Int         @default(0) // 0 正常 1关闭
   articles    Article[]   @relation("tag_article")
   framefuncs  FrameFunc[] @relation("tag_framefunc")
@@ -180,7 +181,9 @@ model FrameFunc {
   update_time    DateTime?      @updatedAt
   name           String         @db.VarChar(20) // 功能名称
   desc           String         @db.VarChar(200) // 功能描述
+  cover          String // 封面图片
   likes          Int            @default(0) // 点赞数
+  sort           Int            @default(0) // 排序
   collects       Int            @default(0) // 收藏数
   code           String         @db.Text // 功能代码
   mentality      String         @db.Text // 功能思路
@@ -199,6 +202,7 @@ model FrameClassify {
   name        String // 分类名称
   status      Int         @default(0) // 0正常 1禁用
   cover       String // 封面图片
+  desc        String // 描述
   sort        Int         @default(0)
   path        String // 路由地址
   create_time DateTime    @default(now())

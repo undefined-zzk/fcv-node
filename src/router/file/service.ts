@@ -94,7 +94,7 @@ export class UploadFileService {
   }
   public async getBannerList(req: Request, res: Response) {
     const query = req.query as unknown as Page
-    const { pageNum, pageSize, startTime, endTime, all, status } =
+    const { pageNum, pageSize, startTime, endTime, all, status, sort } =
       handlePage(query)
     const where = {
       create_time: {
@@ -114,12 +114,14 @@ export class UploadFileService {
           ...where,
           status: 0,
         },
+        orderBy: { sort },
       })
     } else {
       result = await this.prismaDB.prisma.banner.findMany({
         skip: (pageNum - 1) * pageSize,
         take: pageSize,
         where,
+        orderBy: { sort },
       })
     }
 

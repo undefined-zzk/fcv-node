@@ -11,7 +11,8 @@ export class FuncClassifyService {
   constructor(@inject(PrismaDB) private prismaDB: PrismaDB) {}
   public async frameFuncService(req: Request, res: Response) {
     const query = req.query as unknown as Page
-    const { pageNum, pageSize, startTime, endTime, all } = handlePage(query)
+    const { pageNum, pageSize, startTime, endTime, all, sort, status } =
+      handlePage(query)
     let result = []
     const where = {
       name: { contains: query.title || '' },
@@ -19,12 +20,14 @@ export class FuncClassifyService {
         gte: startTime || undefined,
         lte: endTime || undefined,
       },
+      status,
     }
     const total = await this.prismaDB.prisma.frameClassify.count()
     if (all > 0) {
       result = await this.prismaDB.prisma.frameClassify.findMany({
         where,
         distinct: ['name'],
+        orderBy: { sort },
       })
     } else {
       result = await this.prismaDB.prisma.frameClassify.findMany({
@@ -32,6 +35,7 @@ export class FuncClassifyService {
         take: pageSize,
         where,
         distinct: ['name'],
+        orderBy: { sort },
       })
     }
     return sendSuccess(res, {
