@@ -20,6 +20,9 @@ export class FrameFuncService {
     const { pageNum, pageSize, sort, startTime, endTime, all, status } =
       handlePage(query)
     let result = []
+    const classify_id = query.classify_id ? +query.classify_id : undefined
+    const hotsort = query.hotsort || undefined
+
     const where = {
       name: { contains: query.title || '' },
       create_time: {
@@ -27,12 +30,17 @@ export class FrameFuncService {
         lte: endTime || undefined,
       },
       status,
+      classify_id,
     }
-    const orderBy = [{ sort }, { create_time: sort }]
-    const user = req.user as any
+    const orderBy = [
+      { likes: hotsort },
+      { collects: hotsort },
+      { sort },
+      { create_time: sort },
+    ]
     const total = await this.prismaDB.prisma.frameFunc.count({
       where: {
-        status: isAdmin(user.role) ? undefined : 0,
+        classify_id,
       },
     })
     if (all > 0) {
@@ -259,5 +267,19 @@ export class FrameFuncService {
     } catch (error: any) {
       return sendFail(res, 500, error)
     }
+  }
+  public async getFrameFuncDetail(req: Request, res: Response) {
+    const query = req.params as unknown as { id: number }
+    const { id } = query
+    if (!id) return sendFail(res, 400, 'id不能为空')
+    const result = await this.prismaDB.prisma.frameFunc.findUnique({
+      where: { id: +id },
+      include: {
+        tags: true,
+        frame_classify: true,
+      },
+    })
+    if (!result) return sendFail(res, 404, '该功能不存在')
+    return sendSuccess(res, result)
   }
 }

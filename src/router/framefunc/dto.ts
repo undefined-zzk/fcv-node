@@ -27,12 +27,14 @@ export class CreateFrameFuncDto {
   id?: number
   @Transform(({ value }) => {
     const val = Number(value)
-    if (val > 1) {
+    if (val > 2) {
       return 1
     }
     return val
   })
   status?: number
+  @IsNotEmpty({ message: '组件路径不能为空' })
+  component_path!: string
 }
 
 export class UpdateStatusDto {
@@ -44,7 +46,7 @@ export class UpdateStatusDto {
   )
   @Transform(({ value }) => {
     const val = Number(value)
-    if (val > 1) {
+    if (val > 2) {
       return 1
     }
     return val

@@ -7,4 +7,5 @@ export interface Page {
   startTime?: string
   endTime?: string
   all: number
+  [key: string]: any
 }

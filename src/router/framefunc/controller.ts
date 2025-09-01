@@ -15,9 +15,13 @@ export class FrameFuncController {
   constructor(
     @inject(FrameFuncService) private frameFuncService: FrameFuncService
   ) {}
-  @httpGet('/list', JWT.middlewareToken())
+  @httpGet('/list')
   public async getFrameFunc(req: Request, res: Response) {
     return this.frameFuncService.getFrameFuncService(req, res)
+  }
+  @httpGet('/detail/:id')
+  public async getFrameFuncDetail(req: Request, res: Response) {
+    return this.frameFuncService.getFrameFuncDetail(req, res)
   }
   @httpPost('/create', JWT.middlewareToken(), authMiddleware)
   public async addFrameFunc(req: Request, res: Response) {

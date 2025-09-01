@@ -192,6 +192,7 @@ model FrameFunc {
   frame_comments FrameComment[]
   frame_classify FrameClassify  @relation(fields: [classify_id], references: [id])
   classify_id    Int
+  component_path String         @default("") @db.VarChar(100) // 组件路径
 
   @@index([classify_id, name])
 }
