@@ -11,7 +11,12 @@ import {
 import type { Request, Response } from 'express'
 import { PrismaDB } from '../../db/psimadb'
 import type { Page } from '../../types/index'
-import { CreateFrameFuncDto, UpdateStatusDto, LikeCollectDto } from './dto'
+import {
+  CreateFrameFuncDto,
+  UpdateStatusDto,
+  LikeCollectDto,
+  CreateFuncCommentDto,
+} from './dto'
 
 export class FrameFuncService {
   constructor(@inject(PrismaDB) private prismaDB: PrismaDB) {}
@@ -281,5 +286,106 @@ export class FrameFuncService {
     })
     if (!result) return sendFail(res, 404, '该功能不存在')
     return sendSuccess(res, result)
+  }
+  public async addComment(req: Request, res: Response) {
+    const commentDto = plainToClass(CreateFuncCommentDto, req.body)
+    const errors = await validate(commentDto)
+    if (errors.length > 0) return sendError(res, errors)
+    const user = req.user as any
+    const { func_id } = commentDto
+    const exits = await this.prismaDB.prisma.frameFunc.findUnique({
+      where: { id: +func_id },
+    })
+    if (!exits) return sendFail(res, 400, '该功能不存在，不可以评论')
+    if (exits.status === 2)
+      return sendFail(res, 400, '该功能已下线，不可以评论')
+    const result = await this.prismaDB.prisma.frameComment.create({
+      data: {
+        ...commentDto,
+        user_id: user.id,
+      },
+    })
+    return sendSuccess(res, result)
+  }
+  public async getCommentList(req: Request, res: Response) {
+    const query = req.query as unknown as Page
+    const { pageNum, pageSize, sort, commentType } = handlePage(query)
+    const { id } = req.params
+    if (!id) return sendFail(res, 400, 'id不能为空')
+    let create_time = undefined as any
+    let likes = undefined as any
+    if (commentType == 'latest') {
+      create_time = 'desc'
+    }
+    if (commentType == 'hot') {
+      likes = 'desc'
+    }
+    // 查询所有正常一级评论总数
+    const total = await this.prismaDB.prisma.frameComment.count({
+      where: { func_id: +id, pid: 0 },
+    })
+    // 所有正常评论
+    const allResult = await this.prismaDB.prisma.frameComment.findMany({
+      where: { func_id: +id, status: 0 },
+      include: {
+        user: {
+          select: {
+            role: true,
+            avatar: true,
+            phone: true,
+            nickname: true,
+            intro: true,
+            id: true,
+            member: true,
+          },
+        },
+      },
+    })
+    // 查询所有正常一级评论
+    const pResult = await this.prismaDB.prisma.frameComment.findMany({
+      where: { func_id: +id, pid: 0, status: 0 },
+      skip: (pageNum - 1) * pageSize,
+      take: pageSize,
+      orderBy: [{ create_time }, { likes }],
+      include: {
+        user: {
+          select: {
+            role: true,
+            avatar: true,
+            phone: true,
+            nickname: true,
+            intro: true,
+            id: true,
+            member: true,
+          },
+        },
+      },
+    })
+    pResult.forEach((item) => {
+      let list: any[] = []
+      const arr = getChildren(list, item)
+      // @ts-ignore
+      item.children = {
+        list: arr,
+        total: arr.length,
+      }
+    })
+
+    function getChildren(list: any[], pItem: any) {
+      const children = allResult.filter((item) => item.pid === pItem.id)
+      children.forEach((item) => {
+        // @ts-ignore
+        item.reply_name = pItem.user.nickname || pItem.user.phone
+        getChildren(list, item)
+      })
+      list.push(...children)
+      return list
+    }
+    return sendSuccess(res, {
+      list: pResult,
+      pageNum,
+      pageSize,
+      total,
+    })
   }
 }

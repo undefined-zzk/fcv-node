@@ -71,3 +71,16 @@ export class LikeCollectDto {
   })
   type!: number
 }
+
+export class CreateFuncCommentDto {
+  @IsNotEmpty({ message: 'func_id不能为空' })
+  @IsNumber({}, { message: 'id只能是数字' })
+  @Transform(({ value }) => Number(value))
+  func_id!: number
+  @IsNotEmpty({ message: '评论内容不能为空' })
+  content!: string
+  @Transform(({ value }) => Number(value))
+  pid?: number
+  @Transform(({ value }) => Number(value))
+  status?: number
+}

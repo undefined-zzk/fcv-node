@@ -47,4 +47,12 @@ export class FrameFuncController {
   public async likesCollects(req: Request, res: Response) {
     return this.frameFuncService.likesCollects(req, res)
   }
+  @httpPost('/createComment', JWT.middlewareToken())
+  public async addComment(req: Request, res: Response) {
+    return this.frameFuncService.addComment(req, res)
+  }
+  @httpGet('/commentList/:id')
+  public async getCommentList(req: Request, res: Response) {
+    return this.frameFuncService.getCommentList(req, res)
+  }
 }

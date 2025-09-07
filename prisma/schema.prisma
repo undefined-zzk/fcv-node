@@ -99,6 +99,7 @@ model ArticleComment {
   content     String    @db.Text //评论内容 前端限制1000长度
   create_time DateTime  @default(now())
   update_time DateTime? @updatedAt
+  likes       Int       @default(0) // 评论点赞数
   status      Int       @default(1) // 0通过 1审核中 2不通过 
   user        User      @relation(fields: [user_id], references: [id])
   user_id     Int
@@ -225,6 +226,7 @@ model FrameComment {
   pid         Int       @default(0) // 评论父级id
   content     String    @db.Text //用户评价 前端做个1000限制
   create_time DateTime  @default(now())
+  update_time DateTime? @updatedAt
   status      Int       @default(1) // 0正常 1 审核中 2 审核不通过
   likes       Int       @default(0) // 该评论的点赞数量
   user        User      @relation(fields: [user_id], references: [id])
