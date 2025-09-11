@@ -235,6 +235,17 @@ model FrameComment {
   func_id     Int
 }
 
+// 功能评论、文章评论点赞关系表
+model FrameArticleCommentLike {
+  id          Int  @id @default(autoincrement())
+  type        Int //评论类型 0:文章 1:功能
+  article_id  Int? // 文章id
+  func_id     Int? // 功能id
+  comment_id  Int? // 评论id
+  comment_pid Int? // 评论父级id
+  user_id     Int // 用户id
+}
+
 // 私信表
 model PrivateLetter {
   id          Int      @id @default(autoincrement())

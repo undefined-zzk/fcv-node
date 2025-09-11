@@ -48,8 +48,10 @@ export class AddCommentDto {
   content!: string
   @IsNumber(
     { allowInfinity: false, allowNaN: false },
-    { message: 'pid只能是数字' }
+    { message: 'article_pid只能是数字' }
   )
-  @Transform(({ value }) => Number(value))
-  pid?: number
+  @Transform(({ value }) => {
+    return Number(value) ? Number(value) : 0
+  })
+  article_pid?: number
 }

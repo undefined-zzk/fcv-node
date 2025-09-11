@@ -319,9 +319,23 @@ export class ArticleService {
   }
 
   public async addComment(req: Request, res: Response) {
-    const comment = plainToClass(AddCommentDto, req.body)
-    const errors = await validate(comment)
+    const commentDto = plainToClass(AddCommentDto, req.body)
+    const errors = await validate(commentDto)
     if (errors.length > 0) return sendError(res, errors)
-    return sendSuccess(res, '评论成功')
+    const user = req.user as any
+    const { article_id, article_pid, ...restCommentDto } = commentDto
+    const exits = await this.prismaDB.prisma.article.findUnique({
+      where: { id: +article_id, status: 0 },
+    })
+    if (!exits) return sendFail(res, 400, '该文章已封禁，禁止评论')
+    const result = await this.prismaDB.prisma.articleComment.create({
+      data: {
+        ...restCommentDto,
+        article_id: +article_id,
+        pid: +article_pid!,
+        user_id: user.id,
+      },
+    })
+    return sendSuccess(res, result)
   }
 }

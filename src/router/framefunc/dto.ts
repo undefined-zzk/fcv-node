@@ -84,3 +84,22 @@ export class CreateFuncCommentDto {
   @Transform(({ value }) => Number(value))
   status?: number
 }
+
+export class CommentLikeDto {
+  @IsNotEmpty({ message: '评论comment_id不能为空' })
+  @IsNumber({}, { message: 'comment_id只能是数字' })
+  @Transform(({ value }) => Number(value))
+  comment_id!: number
+  @IsNotEmpty({ message: '评论comment_pid不能为空' })
+  @IsNumber({}, { message: 'comment_pid只能是数字' })
+  @Transform(({ value }) => Number(value))
+  comment_pid!: number
+  @IsNotEmpty({ message: '类型type(0/1)不能为空' })
+  @IsNumber({}, { message: 'type只能是数字' })
+  @Transform(({ value }) => Number(value))
+  type!: number
+  @Transform(({ value }) => Number(value))
+  article_id?: number
+  @Transform(({ value }) => Number(value))
+  func_id?: number
+}
