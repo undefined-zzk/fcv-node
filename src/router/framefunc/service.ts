@@ -325,6 +325,9 @@ export class FrameFuncService {
     const total = await this.prismaDB.prisma.frameComment.count({
       where: { func_id: +id, pid: 0 },
     })
+    const allTotal = await this.prismaDB.prisma.frameComment.count({
+      where: { func_id: +id, status: 0 },
+    })
     // 查询所有正常一级评论
     const pResult = await this.prismaDB.prisma.frameComment.findMany({
       where: { func_id: +id, pid: 0, status: 0 },
@@ -345,7 +348,10 @@ export class FrameFuncService {
         },
       },
     })
-    const user = req.user as any
+    const user = await this.prismaDB.prisma.user.findUnique({
+      where: { phone: query.phone },
+      select: { id: true },
+    })
     const getChildren = async (list: any[], pItem: any) => {
       const children = await this.prismaDB.prisma.frameComment.findMany({
         where: { func_id: +id, pid: pItem.id, status: 0 },
@@ -367,16 +373,21 @@ export class FrameFuncService {
         const item = children[i]
         // @ts-ignore
         item.reply_name = pItem.user.nickname || pItem.user.phone
-        const likeStatus =
-          await this.prismaDB.prisma.frameArticleCommentLike.findFirst({
-            where: {
-              func_id: +id,
-              comment_id: item.id,
-              user_id: user?.id,
-            },
-          })
-        // @ts-ignore
-        item.like_status = likeStatus ? 0 : 1
+        if (user) {
+          const likeStatus =
+            await this.prismaDB.prisma.frameArticleCommentLike.findFirst({
+              where: {
+                func_id: +id,
+                comment_id: item.id,
+                user_id: user?.id,
+              },
+            })
+          // @ts-ignore
+          item.like_status = likeStatus ? 0 : 1 // 0：点赞 1：未点赞
+        } else {
+          // @ts-ignore
+          item.like_status = 1
+        }
         await getChildren(list, item)
       }
       list.push(...children)
@@ -390,25 +401,33 @@ export class FrameFuncService {
       pResult[i].children = {
         list,
         total: list.length,
+        pageNum,
+        pageSize,
       }
       // @ts-ignore
       pResult[i].reply_name = null
-      const likeStatus =
-        await this.prismaDB.prisma.frameArticleCommentLike.findFirst({
-          where: {
-            func_id: +id,
-            comment_id: pResult[i].id,
-            user_id: user?.id,
-          },
-        })
-      // @ts-ignore
-      pResult[i].like_status = likeStatus ? 0 : 1 // 0：点赞 1：未点赞
+      if (user) {
+        const likeStatus =
+          await this.prismaDB.prisma.frameArticleCommentLike.findFirst({
+            where: {
+              func_id: +id,
+              comment_id: pResult[i].id,
+              user_id: user?.id,
+            },
+          })
+        // @ts-ignore
+        pResult[i].like_status = likeStatus ? 0 : 1 // 0：点赞 1：未点赞
+      } else {
+        // @ts-ignore
+        pResult[i].like_status = 1 // 0：点赞 1：未点赞
+      }
     }
     return sendSuccess(res, {
       list: pResult,
       pageNum,
       pageSize,
       total,
+      allTotal,
     })
   }
 
