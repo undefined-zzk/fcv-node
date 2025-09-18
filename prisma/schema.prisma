@@ -96,7 +96,8 @@ model Article {
 model ArticleComment {
   id          Int       @id @default(autoincrement())
   pid         Int       @default(0) // 评论父级id
-  content     String    @db.Text //评论内容 前端限制1000长度
+  content     String    @db.Text //评论内容 前端限制10000长度
+  imgs        Json      @default("[]") // 图片
   create_time DateTime  @default(now())
   update_time DateTime? @updatedAt
   likes       Int       @default(0) // 评论点赞数
@@ -224,7 +225,8 @@ model FrameFuncLikeCollect {
 model FrameComment {
   id          Int       @id @default(autoincrement())
   pid         Int       @default(0) // 评论父级id
-  content     String    @db.Text //用户评价 前端做个1000限制
+  content     String    @db.Text //用户评价 前端做个10000限制
+  imgs        Json      @default("[]") // 图片
   create_time DateTime  @default(now())
   update_time DateTime? @updatedAt
   status      Int       @default(1) // 0正常 1 审核中 2 审核不通过
@@ -263,18 +265,24 @@ model Appeal {
   name          String         @db.VarChar(10) // 名称
   create_time   DateTime       @default(now())
   update_time   DateTime?      @updatedAt
+  sort          Int            @default(0)
   status        Int            @default(0) // 0 正常 1禁用
   appeal_record AppealRecord[] @relation("AppealToRecord")
 }
 
 // 评论举报记录表
 model AppealRecord {
-  id        Int      @id @default(autoincrement())
-  type      Int // 评论类型 0私信 1功能评论 2文章评论
-  content   String?  @db.VarChar(200) // 详情
-  status    Int      @default(0) // 0待处理 1 已处理
-  appeal    Appeal[] @relation("AppealToRecord")
-  target_id Int // 被举报内容的id
+  id          Int      @id @default(autoincrement())
+  type        Int // 1功能评论 2文章评论 3建议 4私信
+  content     String?  @db.VarChar(200) // 详情
+  create_time DateTime @default(now())
+  update_time DateTime @updatedAt
+  article_id  Int?     @default(0) // 文章id
+  func_id     Int?     @default(0) // 功能id
+  letter_id   Int?     @default(0) // 私信id
+  status      Int      @default(0) // 0待处理 1 已处理
+  appeal      Appeal[] @relation("AppealToRecord")
+  target_id   Int // 被举报内容的id
 }
 
 // 专栏

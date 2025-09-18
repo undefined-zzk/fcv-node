@@ -79,6 +79,7 @@ export class CreateFuncCommentDto {
   func_id!: number
   @IsNotEmpty({ message: '评论内容不能为空' })
   content!: string
+  imgs?: Array<string>
   @Transform(({ value }) => Number(value))
   pid?: number
   @Transform(({ value }) => Number(value))

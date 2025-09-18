@@ -18,6 +18,7 @@ import {
   CreateFuncCommentDto,
   CommentLikeDto,
 } from './dto'
+import ts from 'node_modules/typescript/lib/typescript'
 
 export class FrameFuncService {
   constructor(@inject(PrismaDB) private prismaDB: PrismaDB) {}
@@ -275,17 +276,51 @@ export class FrameFuncService {
     }
   }
   public async getFrameFuncDetail(req: Request, res: Response) {
-    const query = req.params as unknown as { id: number }
-    const { id } = query
-    if (!id) return sendFail(res, 400, 'id不能为空')
+    const query = req.query as unknown as { func_id: number; phone: string }
+    const { func_id, phone } = query
+    if (!func_id) return sendFail(res, 400, 'id不能为空')
     const result = await this.prismaDB.prisma.frameFunc.findUnique({
-      where: { id: +id },
+      where: { id: +func_id },
       include: {
         tags: true,
         frame_classify: true,
       },
     })
     if (!result) return sendFail(res, 404, '该功能不存在')
+    const user = await this.prismaDB.prisma.user.findUnique({
+      where: { phone },
+      select: {
+        id: true,
+      },
+    })
+    if (user) {
+      const likeStatus =
+        await this.prismaDB.prisma.frameFuncLikeCollect.findFirst({
+          where: {
+            user_id: user.id,
+            frame_func_id: +func_id,
+            type: 0,
+          },
+        })
+
+      const collectStatus =
+        await this.prismaDB.prisma.frameFuncLikeCollect.findFirst({
+          where: {
+            user_id: user.id,
+            frame_func_id: +func_id,
+            type: 1,
+          },
+        })
+      // @ts-ignore
+      result.like_status = likeStatus ? 0 : 1
+      // @ts-ignore
+      result.collect_status = collectStatus ? 0 : 1
+    } else {
+      // @ts-ignore
+      result.like_status = 1
+      // @ts-ignore
+      result.collect_status = 1
+    }
     return sendSuccess(res, result)
   }
   public async addComment(req: Request, res: Response) {
@@ -294,12 +329,24 @@ export class FrameFuncService {
     if (errors.length > 0) return sendError(res, errors)
     const user = req.user as any
     const { func_id } = commentDto
+    const userInfo = await this.prismaDB.prisma.user.findUnique({
+      where: { id: +user.id },
+      select: { id: true, comment_status: true },
+    })
+    if (!userInfo) return sendFail(res, 400, '用户不正确,禁止评论')
+    if (userInfo.comment_status == 1)
+      return sendFail(res, 403, '您已被禁言禁止评论,请联系管理员')
     const exits = await this.prismaDB.prisma.frameFunc.findUnique({
       where: { id: +func_id },
     })
-    if (!exits) return sendFail(res, 400, '该功能不存在，不可以评论')
-    if (exits.status === 2)
-      return sendFail(res, 400, '该功能已下线，不可以评论')
+    if (!exits) return sendFail(res, 400, '该功能不存在，禁止评论')
+    if (exits.status === 2) return sendFail(res, 400, '该功能已下线，禁止评论')
+    const pComment = await this.prismaDB.prisma.frameComment.findUnique({
+      where: { id: commentDto.pid },
+    })
+    if (!pComment) return sendFail(res, 400, '父评论不存在')
+    if (pComment.status === 2)
+      return sendFail(res, 400, '该评论已粉晶，禁止回复')
     const result = await this.prismaDB.prisma.frameComment.create({
       data: {
         ...commentDto,

@@ -19,7 +19,7 @@ export class FrameFuncController {
   public async getFrameFunc(req: Request, res: Response) {
     return this.frameFuncService.getFrameFuncService(req, res)
   }
-  @httpGet('/detail/:id')
+  @httpGet('/detail')
   public async getFrameFuncDetail(req: Request, res: Response) {
     return this.frameFuncService.getFrameFuncDetail(req, res)
   }

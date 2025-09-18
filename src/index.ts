@@ -28,6 +28,7 @@ import './router/tag/controller'
 import './router/framefunc/controller'
 import './router/funcclassify/controller'
 import './router/home/controller'
+import './router/appeal/controller'
 // service
 import { UserService } from './router/user/service'
 import { ThirdpartyService } from './router/thirdparty/service'
@@ -37,6 +38,7 @@ import { TagService } from './router/tag/service'
 import { FrameFuncService } from './router/framefunc/service'
 import { FuncClassifyService } from './router/funcclassify/service'
 import { HomeService } from './router/home/service'
+import { AppealService } from './router/appeal/service'
 dotenv.config()
 
 const container = new Container()
@@ -56,6 +58,7 @@ container.bind(TagService).to(TagService)
 container.bind(FrameFuncService).to(FrameFuncService)
 container.bind(FuncClassifyService).to(FuncClassifyService)
 container.bind(HomeService).to(HomeService)
+container.bind(AppealService).to(AppealService)
 container.bind(PrismaDB).to(PrismaDB)
 container.bind(RedisDB).to(RedisDB) // 初始化redis
 container.bind(JWT).to(JWT)
