@@ -18,28 +18,47 @@ import {
 import { plainToClass } from 'class-transformer'
 import { isNumber, validate } from 'class-validator'
 import { Page } from '../../types/index'
+import { UserService } from '../user/service'
 export class ArticleService {
   private LikeCollType: any = {
     '0': '点赞',
     '1': '收藏',
     '3': '踩踏',
   }
-  constructor(@inject(PrismaDB) private prismaDB: PrismaDB) {}
+  constructor(
+    @inject(PrismaDB) private prismaDB: PrismaDB,
+    @inject(UserService) private userService: UserService
+  ) {}
   public async publishArticle(req: Request, res: Response) {
     const articlePublishDto = plainToClass(ArticlePublishDto, req.body)
     const errors = await validate(articlePublishDto)
     if (errors.length > 0) return sendError(res, errors)
     const user = req.user as any
-    await this.prismaDB.prisma.article.create({
-      data: {
-        ...articlePublishDto,
-        user_id: user.id,
-        tags: {
-          connect: articlePublishDto.tags.map((tagId) => ({ id: +tagId })),
+    try {
+      const userData = await this.prismaDB.prisma.user.findUnique({
+        where: { id: user.id },
+      })
+      const result = await this.prismaDB.prisma.article.create({
+        data: {
+          ...articlePublishDto,
+          user_id: user.id,
+          tags: {
+            connect: articlePublishDto.tags.map((tagId) => ({ id: +tagId })),
+          },
         },
-      },
-    })
-    return sendSuccess(res, articlePublishDto)
+      })
+      // 更新用户积分
+      await this.userService.updateIntegral(req, res, {
+        integral: 2,
+        source: '发表了一篇文章',
+        type: 0,
+        user_id: user.id,
+        source_id: result.id,
+      })
+      return sendSuccess(res, result)
+    } catch (error) {
+      sendFail(res, 400, String(error))
+    }
   }
 
   public async upadateArticle(req: Request, res: Response) {

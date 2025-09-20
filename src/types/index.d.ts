@@ -9,3 +9,11 @@ export interface Page {
   all: number
   [key: string]: any
 }
+
+export interface IntegralParams {
+  integral: number
+  user_id: number
+  type: number
+  source: string
+  source_id: number
+}

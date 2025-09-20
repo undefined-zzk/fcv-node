@@ -50,4 +50,8 @@ export class User {
   private async updateUserInfo(req: Request, res: Response) {
     return await this.userService.updateUserInfo(req, res)
   }
+  @httpPut('/integral')
+  private async updateIntegral(req: Request, res: Response) {
+    return await this.userService.updateIntegral(req, res, undefined)
+  }
 }

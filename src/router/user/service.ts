@@ -18,6 +18,7 @@ import {
 import jsyaml from 'js-yaml'
 import fs from 'fs'
 import { JWT } from '../../jwt/index'
+import { IntegralParams } from '../../types/index'
 export class UserService {
   constructor(
     @inject(PrismaDB) private prismaDB: PrismaDB,
@@ -282,6 +283,35 @@ export class UserService {
     } catch (error) {
       console.log('error', error)
       return sendFail(res, 400, '更新失败')
+    }
+  }
+
+  public async updateIntegral(
+    req: Request,
+    res: Response,
+    integralParams: IntegralParams | undefined
+  ) {
+    if (integralParams) {
+      const { integral, user_id, ...rest } = integralParams
+      const user = await this.prismaDB.prisma.user.findUnique({
+        where: { id: +user_id },
+      })
+      await this.prismaDB.prisma.$transaction([
+        this.prismaDB.prisma.user.update({
+          where: { id: +user_id },
+          data: {
+            integral: ((user!.integral as number) += 2),
+            integrals: {
+              create: {
+                integral,
+                ...rest,
+              },
+            },
+          },
+        }),
+      ])
+    } else {
+      return sendSuccess(res, 'ok')
     }
   }
 }

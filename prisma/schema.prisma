@@ -74,7 +74,7 @@ model Article {
   title                 String               @db.VarChar(20) // 标题
   content               String               @db.LongText // 内容
   cover                 String? // 文章封面
-  desc                  String? // 文章描述
+  desc                  String?              @db.VarChar(200) // 文章描述 
   create_time           DateTime             @default(now()) // 创建时间
   update_time           DateTime?            @updatedAt // 更新时间
   likes                 Int                  @default(0) // 点赞数
@@ -205,7 +205,7 @@ model FrameClassify {
   name        String // 分类名称
   status      Int         @default(0) // 0正常 1禁用
   cover       String // 封面图片
-  desc        String // 描述
+  desc        String      @db.VarChar(200) // 描述
   sort        Int         @default(0)
   path        String // 路由地址
   create_time DateTime    @default(now())

@@ -63,7 +63,7 @@ export class TagService {
     const result = await this.prismaDB.prisma.tag.findMany({
       skip: (pageNum - 1) * pageSize,
       take: pageSize,
-      where: { status: 0, hot: { gt: 0 } },
+      where: { status: 0 },
       orderBy: { hot: 'desc' },
     })
     return sendSuccess(res, {
