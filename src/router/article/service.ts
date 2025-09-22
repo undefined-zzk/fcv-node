@@ -23,7 +23,7 @@ export class ArticleService {
   private LikeCollType: any = {
     '0': '点赞',
     '1': '收藏',
-    '3': '踩踏',
+    '2': '踩踏',
   }
   constructor(
     @inject(PrismaDB) private prismaDB: PrismaDB,
@@ -34,13 +34,11 @@ export class ArticleService {
     const errors = await validate(articlePublishDto)
     if (errors.length > 0) return sendError(res, errors)
     const user = req.user as any
+    const { id, ...rest } = articlePublishDto
     try {
-      const userData = await this.prismaDB.prisma.user.findUnique({
-        where: { id: user.id },
-      })
       const result = await this.prismaDB.prisma.article.create({
         data: {
-          ...articlePublishDto,
+          ...rest,
           user_id: user.id,
           tags: {
             connect: articlePublishDto.tags.map((tagId) => ({ id: +tagId })),
@@ -73,7 +71,7 @@ export class ArticleService {
       return sendFail(res, 400, '帖子不存在')
     }
     if (article.status === 1)
-      return sendFail(res, 400, '帖子已查封,无法修改请,有疑问请联系作者')
+      return sendFail(res, 400, '帖子已查封,无法修改,有疑问请联系作者')
     const { id, ...updateDto } = articleUpdateDto
     await this.prismaDB.prisma.article.update({
       where: { id: +id, user_id: user.id },
@@ -112,7 +110,15 @@ export class ArticleService {
     const { pageNum, pageSize, sort, startTime, endTime, all } =
       handlePage(query)
     let articleList: any[] = []
-    const user = req.user as any
+    const phone = query.phone
+    let user = req.user as any
+    if (phone) {
+      user = await this.prismaDB.prisma.user.findFirst({
+        where: { phone },
+        select: { id: true, phone: true, role: true, status: true },
+      })
+      if (!user) return sendFail(res, 400, '参数错误')
+    }
     const where = {
       title: { contains: query.title || '' },
       user_id: isAdmin(user.role) ? undefined : user.id,
@@ -139,7 +145,7 @@ export class ArticleService {
     }
     const total = await this.prismaDB.prisma.article.count({
       where: {
-        status: 0,
+        user_id: user.id,
       },
     })
 
@@ -186,6 +192,7 @@ export class ArticleService {
       article_comments_nums: article.article_comments.length, // 评论数
     }
     article.article_like_collects.forEach((item) => {
+      // 0 点赞 1 收藏 2 踩踏
       if (item.type === 0) {
         statistics.likes += 1 // 点赞数
         if (item.user_id === user.id) {
@@ -242,6 +249,22 @@ export class ArticleService {
         `帖子已查封,无法${this.LikeCollType[likecollect.type]}`
       )
     }
+    const updateArticle = async (data: {
+      likes: number
+      no_likes: number
+      collects: number
+    }) => {
+      await this.prismaDB.prisma.article.update({
+        where: {
+          id: +likecollect.article_id,
+        },
+        data: {
+          likes: (article.likes += data.likes),
+          no_likes: (article.no_likes += data.no_likes),
+          collects: (article.collects += data.collects),
+        },
+      })
+    }
     const common = async (type: number) => {
       const exits = await this.prismaDB.prisma.articleLikeCollect.findMany({
         where: {
@@ -250,6 +273,7 @@ export class ArticleService {
           type,
         },
       })
+      console.log('exits', exits.length)
       if (exits.length == 0) {
         await this.prismaDB.prisma.articleLikeCollect.create({
           data: {
@@ -287,8 +311,8 @@ export class ArticleService {
               },
             },
           })
-        }
-        if (type == 2 && likes.length > 0) {
+          await updateArticle({ likes: 1, no_likes: -1, collects: 0 })
+        } else if (type == 2 && likes.length > 0) {
           // 踩踏就把点赞删除
           await this.prismaDB.prisma.articleLikeCollect.deleteMany({
             where: {
@@ -303,7 +327,20 @@ export class ArticleService {
               },
             },
           })
+          await updateArticle({ likes: -1, no_likes: 1, collects: 0 })
+        } else {
+          if (type == 1) {
+            // 收藏
+            await updateArticle({ likes: 0, no_likes: 0, collects: 1 })
+          } else if (type == 0) {
+            // 点赞
+            await updateArticle({ likes: 1, no_likes: 0, collects: 0 })
+          } else {
+            // 踩踏
+            await updateArticle({ likes: 0, no_likes: 1, collects: 0 })
+          }
         }
+
         return sendSuccess(
           res,
           `${type == 0 ? '点赞成功' : type == 1 ? '收藏成功' : '踩踏成功'}`
@@ -321,6 +358,11 @@ export class ArticleService {
               in: [type],
             },
           },
+        })
+        await updateArticle({
+          likes: type == 0 ? -1 : 0,
+          no_likes: type == 2 ? -1 : 0,
+          collects: type == 1 ? -1 : 0,
         })
         return sendSuccess(
           res,
