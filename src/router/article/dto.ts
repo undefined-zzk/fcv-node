@@ -53,5 +53,8 @@ export class AddCommentDto {
   @Transform(({ value }) => {
     return Number(value) ? Number(value) : 0
   })
-  article_pid?: number
+  pid?: number
+  imgs?: string[]
+  @Transform(({ value }) => Number(value))
+  status?: number
 }

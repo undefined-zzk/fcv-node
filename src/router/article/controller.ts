@@ -47,4 +47,8 @@ export class ArticleController {
   public async common(req: Request, res: Response) {
     return this.articleService.addComment(req, res)
   }
+  @httpGet('/commentList/:id')
+  public async getCommentList(req: Request, res: Response) {
+    return this.articleService.getCommentList(req, res)
+  }
 }

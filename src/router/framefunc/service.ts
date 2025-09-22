@@ -344,9 +344,9 @@ export class FrameFuncService {
     const pComment = await this.prismaDB.prisma.frameComment.findUnique({
       where: { id: commentDto.pid },
     })
-    if (!pComment) return sendFail(res, 400, '父评论不存在')
-    if (pComment.status === 2)
-      return sendFail(res, 400, '该评论已粉晶，禁止回复')
+    if (commentDto.pid && !pComment) return sendFail(res, 400, '父评论不存在')
+    if (commentDto.pid && pComment?.status === 2)
+      return sendFail(res, 400, '该评论已封禁，禁止回复')
     const result = await this.prismaDB.prisma.frameComment.create({
       data: {
         ...commentDto,
@@ -370,7 +370,7 @@ export class FrameFuncService {
     }
     // 查询所有正常一级评论总数
     const total = await this.prismaDB.prisma.frameComment.count({
-      where: { func_id: +id, pid: 0 },
+      where: { func_id: +id, pid: 0, status: 0 },
     })
     const allTotal = await this.prismaDB.prisma.frameComment.count({
       where: { func_id: +id, status: 0 },
@@ -395,7 +395,7 @@ export class FrameFuncService {
         },
       },
     })
-    const user = await this.prismaDB.prisma.user.findUnique({
+    const user = await this.prismaDB.prisma.user.findFirst({
       where: { phone: query.phone },
       select: { id: true },
     })
@@ -501,6 +501,7 @@ export class FrameFuncService {
             comment_id: comment_id,
             comment_pid: comment_pid,
             article_id: article_id,
+            user_id: user.id,
           },
         })
       if (unique) {
@@ -549,6 +550,7 @@ export class FrameFuncService {
             comment_id: comment_id,
             comment_pid: comment_pid,
             func_id: func_id,
+            user_id: user.id,
           },
         })
       if (unique) {
