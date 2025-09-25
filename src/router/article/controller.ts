@@ -51,4 +51,28 @@ export class ArticleController {
   public async getCommentList(req: Request, res: Response) {
     return this.articleService.getCommentList(req, res)
   }
+  // 查询专栏列表
+  @httpGet('/column')
+  public async listColumn(req: Request, res: Response) {
+    return this.articleService.listColumn(req, res)
+  }
+  // 创建专栏
+  @httpPost('/column', JWT.middlewareToken())
+  public async addColumn(req: Request, res: Response) {
+    return this.articleService.addColumn(req, res)
+  }
+  // 删除专栏
+  @httpDelete('/column', JWT.middlewareToken())
+  public async delColumn(req: Request, res: Response) {
+    return this.articleService.delColumn(req, res)
+  }
+  @httpGet('/column/:id')
+  public async columnDetail(req: Request, res: Response) {
+    return this.articleService.columnDetail(req, res)
+  }
+  // 获取用户收藏列表（包括功能）
+  @httpGet('/collects')
+  public async listCollects(req: Request, res: Response) {
+    return this.articleService.listCollects(req, res)
+  }
 }

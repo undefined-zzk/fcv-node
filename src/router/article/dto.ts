@@ -1,4 +1,4 @@
-import { IsArray, IsNotEmpty, IsNumber } from 'class-validator'
+import { IsArray, IsNotEmpty, IsNumber, Length } from 'class-validator'
 import { Transform } from 'class-transformer'
 export class ArticlePublishDto {
   @IsNotEmpty({ message: '标题不能为空' })
@@ -57,4 +57,17 @@ export class AddCommentDto {
   imgs?: string[]
   @Transform(({ value }) => Number(value))
   status?: number
+}
+
+export class SpeacilColumnDto {
+  @IsNotEmpty({ message: '名称不能为空' })
+  @Length(1, 20, { message: '名称最长字符为20' })
+  name!: string
+  @IsNotEmpty({ message: '封面不能为空' })
+  cover!: string
+  @IsNotEmpty({ message: '描述不能为空' })
+  @Length(1, 200, { message: '描述最长为200字符' })
+  desc!: string
+  id?: number
+  articles?: number[]
 }

@@ -178,23 +178,24 @@ model Integral {
 
 // 框架功能表
 model FrameFunc {
-  id             Int            @id @default(autoincrement())
-  create_time    DateTime       @default(now())
-  update_time    DateTime?      @updatedAt
-  name           String         @db.VarChar(20) // 功能名称
-  desc           String         @db.VarChar(200) // 功能描述
-  cover          String // 封面图片
-  likes          Int            @default(0) // 点赞数
-  sort           Int            @default(0) // 排序
-  collects       Int            @default(0) // 收藏数
-  code           String         @db.Text // 功能代码
-  mentality      String         @db.Text // 功能思路
-  status         Int            @default(0) // 0正常 1升级中 2 下线
-  tags           Tag[]          @relation("tag_framefunc")
-  frame_comments FrameComment[]
-  frame_classify FrameClassify  @relation(fields: [classify_id], references: [id])
-  classify_id    Int
-  component_path String         @default("") @db.VarChar(100) // 组件路径
+  id                      Int                    @id @default(autoincrement())
+  create_time             DateTime               @default(now())
+  update_time             DateTime?              @updatedAt
+  name                    String                 @db.VarChar(20) // 功能名称
+  desc                    String                 @db.VarChar(200) // 功能描述
+  cover                   String // 封面图片
+  likes                   Int                    @default(0) // 点赞数
+  sort                    Int                    @default(0) // 排序
+  collects                Int                    @default(0) // 收藏数
+  code                    String                 @db.Text // 功能代码
+  mentality               String                 @db.Text // 功能思路
+  status                  Int                    @default(0) // 0正常 1升级中 2 下线
+  tags                    Tag[]                  @relation("tag_framefunc")
+  frame_comments          FrameComment[]
+  frame_classify          FrameClassify          @relation(fields: [classify_id], references: [id])
+  classify_id             Int
+  framefunc_like_collects FrameFuncLikeCollect[]
+  component_path          String                 @default("") @db.VarChar(100) // 组件路径
 
   @@index([classify_id, name])
 }
@@ -215,7 +216,8 @@ model FrameClassify {
 
 // 用户与功能框架点赞和收藏关系表
 model FrameFuncLikeCollect {
-  id            Int @id @default(autoincrement())
+  id            Int       @id @default(autoincrement())
+  frameFunc     FrameFunc @relation(fields: [frame_func_id], references: [id])
   frame_func_id Int // 功能id
   user_id       Int // 用户id
   type          Int // 0点赞 1收藏
@@ -295,7 +297,7 @@ model SpecialColumn {
   user_id     Int
   articles    Article[] @relation("SpecialColumnToArticle")
   create_time DateTime  @default(now())
-  update_time DateTime? @default(now())
+  update_time DateTime  @updatedAt
 }
 
 // 轮播图表

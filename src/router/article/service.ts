@@ -14,6 +14,7 @@ import {
   UpdateArticleStatusDto,
   LikeCollectDto,
   AddCommentDto,
+  SpeacilColumnDto,
 } from './dto'
 import { plainToClass } from 'class-transformer'
 import { isNumber, validate } from 'class-validator'
@@ -534,5 +535,271 @@ export class ArticleService {
       total,
       allTotal,
     })
+  }
+
+  public async listColumn(req: Request, res: Response) {
+    const query = req.query as unknown as Page
+    const { pageNum, pageSize, sort, startTime, endTime, all } =
+      handlePage(query)
+    let columnList: any[] = []
+    const phone = query.phone
+    if (!phone) return sendFail(res, 400, '缺少phone参数')
+    const user = await this.prismaDB.prisma.user.findFirst({
+      where: { phone },
+      select: { id: true, phone: true, role: true, status: true },
+    })
+    if (!user) return sendFail(res, 400, 'phone不存在')
+    const where = {
+      name: { contains: query.title || '' },
+      user_id: isAdmin(user.role as string[]) ? undefined : user.id,
+      create_time: {
+        gte: startTime || undefined,
+        lte: endTime || undefined,
+      },
+    }
+    const orderBy = [{ create_time: sort }]
+    if (all > 0) {
+      columnList = await this.prismaDB.prisma.specialColumn.findMany({
+        orderBy,
+        where,
+        distinct: ['name'],
+        include: {
+          articles: true,
+        },
+      })
+    } else {
+      columnList = await this.prismaDB.prisma.specialColumn.findMany({
+        skip: (pageNum - 1) * pageSize,
+        take: pageSize,
+        where,
+        orderBy,
+        include: {
+          articles: true,
+        },
+        distinct: ['name'],
+      })
+    }
+    const total = await this.prismaDB.prisma.specialColumn.count({
+      where: {
+        user_id: user.id,
+      },
+    })
+
+    return sendSuccess(res, {
+      list: columnList,
+      total,
+      pageNum,
+      pageSize,
+    })
+  }
+
+  public async addColumn(req: Request, res: Response) {
+    const SpeacilColumn = plainToClass(SpeacilColumnDto, req.body)
+    const errors = await validate(SpeacilColumn)
+    if (errors.length > 0) return sendError(res, errors)
+    const user = req.user as any
+    const { name, id, articles, ...rest } = SpeacilColumn
+    if (!id) {
+      const exits = await this.prismaDB.prisma.specialColumn.findFirst({
+        where: { name, user_id: +user.id },
+      })
+      if (exits) return sendFail(res, 400, '专栏名称重复')
+      const result = await this.prismaDB.prisma.specialColumn.create({
+        data: {
+          ...rest,
+          name,
+          user_id: +user.id,
+        },
+      })
+      return sendSuccess(res, result)
+    } else {
+      const exits = await this.prismaDB.prisma.specialColumn.findFirst({
+        where: { user_id: +user.id, id: +id },
+      })
+      if (!exits) return sendFail(res, 400, '修改的专栏不存在')
+      if (exits.name !== name) {
+        const exitName = await this.prismaDB.prisma.specialColumn.findFirst({
+          where: { name, user_id: +user.id },
+        })
+        if (exitName?.name === name) return sendFail(res, 400, '专栏名称重复')
+      }
+      if (!(articles instanceof Array))
+        return sendFail(res, 400, 'articles参数错误')
+      if (articles.length > 0) {
+        if (!articles.every((k) => Number(k))) {
+          return sendFail(res, 400, 'articles参数错误')
+        }
+        const issCurrentUserArticle =
+          await this.prismaDB.prisma.article.findMany({
+            where: {
+              id: { in: articles.map((id) => +id) },
+              user_id: +user.id,
+            },
+          })
+        if (issCurrentUserArticle.length !== articles.length)
+          return sendFail(res, 400, '添加的文章中存在其它用户的文章')
+      }
+      console.log('articles', articles)
+      const update = await this.prismaDB.prisma.specialColumn.update({
+        where: { id: +id, user_id: +user.id },
+        data: {
+          ...rest,
+          name,
+          articles: {
+            set: articles.map((id) => ({ id: +id })),
+          },
+        },
+      })
+      return sendSuccess(res, update)
+    }
+  }
+
+  public async delColumn(req: Request, res: Response) {
+    const columnIds = req.query.ids
+    if (!columnIds) return sendFail(res, 400, '缺少query参数ids')
+    const ids = (columnIds as string).split(',').map((id) => +id)
+    if (!ids.every((id) => isNumber(id) && Number.isInteger(id))) {
+      return sendFail(res, 400, 'ids格式错误')
+    }
+    const existIds = await this.prismaDB.prisma.specialColumn.findMany({
+      where: { id: { in: ids } },
+      select: { id: true },
+    })
+    const delIds = existIds.map((item) => item.id)
+    try {
+      await this.prismaDB.prisma.specialColumn.deleteMany({
+        where: { id: { in: delIds } },
+      })
+    } catch (error: any) {
+      return sendSuccess(res, error.meta)
+    }
+    return sendSuccess(res, `删除成功${delIds.length}条数据${delIds}`)
+  }
+
+  public async listCollects(req: Request, res: Response) {
+    const query = req.query as unknown as Page
+    const { pageNum, pageSize, sort, startTime, endTime, all } =
+      handlePage(query)
+    let columnList: any[] = []
+    let total = 0
+    const phone = query.phone
+    if (!phone) return sendFail(res, 400, '缺少phone参数')
+    const type = query.type
+    if (type != 1 && type != 2) return sendFail(res, 400, 'type参数错误')
+    const user = await this.prismaDB.prisma.user.findFirst({
+      where: { phone },
+      select: { id: true, phone: true, role: true, status: true },
+    })
+    if (!user) return sendFail(res, 400, 'phone不存在')
+    const where = {
+      user_id: isAdmin(user.role as string[]) ? undefined : user.id,
+      create_time: {
+        gte: startTime || undefined,
+        lte: endTime || undefined,
+      },
+    }
+    const orderBy = [{ create_time: sort }]
+    const getArticleList = async (options: object = {}) => {
+      columnList = await this.prismaDB.prisma.article.findMany({
+        ...options,
+        where: {
+          ...where,
+          article_like_collects: {
+            some: {
+              type: 1,
+              user_id: user.id,
+            },
+          },
+        },
+        orderBy,
+      })
+      total = await this.prismaDB.prisma.article.count({
+        where: {
+          user_id: user.id,
+          article_like_collects: {
+            some: {
+              type: 1,
+              user_id: user.id,
+            },
+          },
+        },
+      })
+    }
+
+    const getFrameFuncList = async (options: object = {}) => {
+      columnList = await this.prismaDB.prisma.frameFunc.findMany({
+        skip: (pageNum - 1) * pageSize,
+        take: pageSize,
+        where: {
+          create_time: {
+            gte: startTime || undefined,
+            lte: endTime || undefined,
+          },
+          framefunc_like_collects: {
+            some: {
+              user_id: user.id,
+              type: 1,
+            },
+          },
+        },
+        orderBy,
+      })
+      total = await this.prismaDB.prisma.frameFunc.count({
+        where: {
+          framefunc_like_collects: {
+            some: {
+              user_id: user.id,
+              type: 1,
+            },
+          },
+        },
+      })
+    }
+    if (all > 0) {
+      if (type == 1) {
+        // 文章
+        await getArticleList()
+      } else {
+        await getFrameFuncList()
+      }
+    } else {
+      if (type == 1) {
+        await getArticleList({
+          skip: (pageNum - 1) * pageSize,
+          take: pageSize,
+        })
+      } else {
+        await getFrameFuncList({
+          skip: (pageNum - 1) * pageSize,
+          take: pageSize,
+        })
+      }
+    }
+
+    return sendSuccess(res, {
+      list: columnList,
+      total,
+      pageNum,
+      pageSize,
+    })
+  }
+  public async columnDetail(req: Request, res: Response) {
+    const columnId = req.params.id
+    const result = await this.prismaDB.prisma.specialColumn.findUnique({
+      where: { id: +columnId },
+      include: {
+        articles: true,
+        user: {
+          select: {
+            avatar: true,
+            nickname: true,
+            phone: true,
+            id: true,
+          },
+        },
+      },
+    })
+    if (!result) return sendFail(res, 400, '该专栏不存在')
+    return sendSuccess(res, result)
   }
 }

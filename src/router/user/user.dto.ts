@@ -1,5 +1,5 @@
 import { IsNotEmpty, IsNumber, Matches, IsOptional } from 'class-validator'
-import { Expose } from 'class-transformer'
+import { Expose, Transform } from 'class-transformer'
 export class UserLoginDto {
   constructor() {}
   @Matches(/^1[3-9]\d{9}$/, { message: '手机号格式不正确' })
@@ -70,4 +70,9 @@ export class UserUpdateDto {
 export class UpdateAvatarDto {
   @IsNotEmpty({ message: '头像不能为空' })
   avatar!: string
+}
+
+export class FollowDto {
+  @IsNotEmpty({ message: 'phone不能为空' })
+  phone!: string
 }

@@ -157,7 +157,13 @@ export const handlePage = (page: Page) => {
   let pageSize = 20
   let sort: 'asc' | 'desc' = 'desc'
   if (page.pageNum && page.pageNum > 0) pageNum = page.pageNum
-  if (page.pageSize && page.pageSize > 0) pageSize = page.pageSize
+  if (page.pageSize && page.pageSize > 0) {
+    if (page.pageSize > 100) {
+      page.pageSize = 100
+    } else {
+      pageSize = page.pageSize
+    }
+  }
   if (page.sort && ['asc', 'desc'].includes(page.sort)) sort = page.sort
   if (page.title) page.title = page.title.trim()
   if (page.startTime) page.startTime = convertToIsoFormat(page.startTime.trim())

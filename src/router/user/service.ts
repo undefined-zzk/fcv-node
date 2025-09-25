@@ -2,7 +2,12 @@ import type { Request, Response } from 'express'
 import { inject } from 'inversify'
 import { plainToClass } from 'class-transformer'
 import { validate } from 'class-validator'
-import { UserLoginDto, UserTokenDto, UserUpdateDto } from './user.dto'
+import {
+  UserLoginDto,
+  UserTokenDto,
+  UserUpdateDto,
+  FollowDto,
+} from './user.dto'
 import { PrismaDB } from '../../db/psimadb'
 import { RedisDB } from '../../db/redis'
 import { nanoid } from 'nanoid'
@@ -14,8 +19,11 @@ import {
   encryptWithPublicKey,
   decryptWithPrivateKey,
   getClientIp,
+  handlePage,
+  isAdmin,
 } from '../../utils/index'
 import jsyaml from 'js-yaml'
+import { Page } from '../../types/index'
 import fs from 'fs'
 import { JWT } from '../../jwt/index'
 import { IntegralParams } from '../../types/index'
@@ -218,11 +226,10 @@ export class UserService {
   }
   public async getUserInfo(req: Request, res: Response) {
     let user = req.user as any
-    if (req.params.id) {
-      user.id = +req.params.id
-    }
+    const paramId = req.params.id
+    const currentUserId = paramId ? +paramId : +user.id
     const userInfo = await this.prismaDB.prisma.user.findUnique({
-      where: { id: user.id },
+      where: { id: currentUserId },
       omit: { password: true, id: true },
       include: {
         accounts: {
@@ -233,15 +240,45 @@ export class UserService {
             balance: true,
           },
         },
-        followers: true,
-        following: true,
+        followers: {
+          where: {
+            follower_id: currentUserId,
+            status: 0,
+            followed_id: {
+              not: currentUserId,
+            },
+          },
+        },
+        following: {
+          where: {
+            followed_id: currentUserId,
+            status: 0,
+            follower_id: {
+              not: currentUserId,
+            },
+          },
+        },
       },
     })
+
     if (!userInfo) return sendFail(res, 400, '用户信息不存在')
     if (userInfo.status === 1) return sendFail(res, 403, '该账号已被禁用')
     const balance = +userInfo.accounts[0]?.balance || 0
     const fans = userInfo.following.length
     const attention = userInfo.followers.length
+    let attention_status = 1 //没关注
+    if (paramId) {
+      const exits = await this.prismaDB.prisma.attentionFans.findFirst({
+        where: {
+          followed_id: +paramId,
+          follower_id: +user.id,
+          status: 0,
+        },
+      })
+      if (exits) {
+        attention_status = 0 // 关注
+      }
+    }
     // const integral=0 //积分
     // const praise=0 //获赞数
     // const rank=0 //排名
@@ -249,9 +286,10 @@ export class UserService {
       ...userInfo,
       balance,
       accounts: [],
-      followers: [],
-      following: [],
+      // followers: [],
+      // following: [],
       fans,
+      attention_status,
       attention,
     })
   }
@@ -313,5 +351,173 @@ export class UserService {
     } else {
       return sendSuccess(res, 'ok')
     }
+  }
+  public async follow(req: Request, res: Response) {
+    const follow = plainToClass(FollowDto, req.body)
+    const errors = await validate(follow)
+    if (errors.length > 0) return sendError(res, errors)
+    const { phone } = follow
+    const hasUser = await this.prismaDB.prisma.user.findUnique({
+      where: { phone, status: 0 },
+    })
+    if (!hasUser) return sendFail(res, 403, '用户不存在或被封禁')
+    const followed_id = hasUser.id
+    const user = req.user as any
+    if (followed_id == user.id) return sendFail(res, 400, '不能自己关注自己')
+    const exits = await this.prismaDB.prisma.attentionFans.findFirst({
+      where: {
+        followed_id,
+        follower_id: +user.id,
+      },
+    })
+    if (!exits) {
+      const result = await this.prismaDB.prisma.attentionFans.create({
+        data: {
+          followed_id,
+          follower_id: +user.id,
+          status: 0,
+        },
+      })
+      return sendSuccess(res, result)
+    } else {
+      const result = await this.prismaDB.prisma.attentionFans.update({
+        where: {
+          id: exits.id,
+          followed_id,
+          follower_id: +user.id,
+        },
+        data: {
+          status: exits.status == 0 ? 1 : 0,
+        },
+      })
+      return sendSuccess(res, result)
+    }
+  }
+  public async getFollowList(req: Request, res: Response) {
+    const query = req.query as unknown as Page
+    const { pageNum, pageSize, sort, startTime, endTime, all } =
+      handlePage(query)
+    let columnList: any[] = []
+    const phone = req.params.phone
+    const type = query.type
+    const user = req.user as any
+    let uniqueUser
+    if (phone) {
+      uniqueUser = await this.prismaDB.prisma.user.findUnique({
+        where: { phone },
+        select: { id: true },
+      })
+    }
+    const userId = uniqueUser?.id
+    const currentUserId = userId ? +userId : +user.id
+    //1是关注列表  2是粉丝列表
+    if (type != 1 && type != 2) return sendFail(res, 400, 'type参数错误')
+    const userInfo = await this.prismaDB.prisma.user.findFirst({
+      where: { id: userId ? +userId : +user.id },
+      select: { id: true, phone: true, role: true, status: true },
+    })
+    if (!userInfo) return sendFail(res, 400, '用户id参数错误')
+    const whereOptions = {
+      create_time: {
+        gte: startTime || undefined,
+        lte: endTime || undefined,
+      },
+    }
+    let total = 0
+    const selectOptions = {
+      avatar: true,
+      nickname: true,
+      phone: true,
+      id: true,
+      member: true,
+      status: true,
+      intro: true,
+    }
+    const orderBy = [{ create_time: sort }]
+    const getFollowList = async (options: any = {}) => {
+      columnList = await this.prismaDB.prisma.user.findMany({
+        ...options,
+        orderBy,
+        select: {
+          ...selectOptions,
+        },
+      })
+      total = await this.prismaDB.prisma.attentionFans.count({
+        where: options.where.following
+          ? options.where.following.some
+          : options.where.followers.some,
+      })
+    }
+    if (type == 1) {
+      // 关注列表
+      await getFollowList({
+        skip: all > 0 ? undefined : (pageNum - 1) * pageSize,
+        take: all > 0 ? undefined : pageSize,
+        where: {
+          ...whereOptions,
+          following: {
+            some: {
+              follower_id: currentUserId,
+              followed_id: {
+                not: currentUserId,
+              },
+              status: 0,
+            },
+          },
+        },
+      })
+      // for (let i = 0; i < columnList.length; i++) {
+      //   const item = columnList[i]
+      //   const obj = await this.prismaDB.prisma.attentionFans.findFirst({
+      //     where: {
+      //       followed_id: item.id,
+      //       follower_id: +user.id,
+      //     },
+      //   })
+      //   if (obj) {
+      //     item.attention_status = obj.status
+      //   } else {
+      //     item.attention_status = 1
+      //   }
+      // }
+    } else {
+      // 粉丝列表
+      await getFollowList({
+        skip: all > 0 ? undefined : (pageNum - 1) * pageSize,
+        take: all > 0 ? undefined : pageSize,
+        where: {
+          ...whereOptions,
+          followers: {
+            some: {
+              followed_id: currentUserId,
+              follower_id: {
+                not: currentUserId,
+              },
+              status: 0,
+            },
+          },
+        },
+      })
+    }
+    for (let i = 0; i < columnList.length; i++) {
+      const item = columnList[i]
+      const obj = await this.prismaDB.prisma.attentionFans.findFirst({
+        where: {
+          followed_id: item.id,
+          follower_id: +user.id,
+        },
+      })
+      if (obj) {
+        item.attention_status = obj.status
+      } else {
+        item.attention_status = 1
+      }
+    }
+    return sendSuccess(res, {
+      list: columnList,
+      total,
+      pageNum,
+      pageSize,
+    })
   }
 }

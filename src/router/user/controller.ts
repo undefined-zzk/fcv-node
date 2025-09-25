@@ -54,4 +54,14 @@ export class User {
   private async updateIntegral(req: Request, res: Response) {
     return await this.userService.updateIntegral(req, res, undefined)
   }
+  // 关注操作
+  @httpPost('/follows', JWT.middlewareToken())
+  private async follow(req: Request, res: Response) {
+    return await this.userService.follow(req, res)
+  }
+  // 获取关注、粉丝列表
+  @httpGet('/follows/:phone?', JWT.middlewareToken())
+  private async getFollowList(req: Request, res: Response) {
+    return await this.userService.getFollowList(req, res)
+  }
 }
