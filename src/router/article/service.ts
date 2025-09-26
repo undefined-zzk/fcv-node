@@ -47,7 +47,7 @@ export class ArticleService {
         },
       })
       // 更新用户积分
-      await this.userService.updateIntegral(req, res, {
+      await this.userService.updateIntegral({
         integral: 2,
         source: '发表了一篇文章',
         type: 0,
@@ -274,7 +274,6 @@ export class ArticleService {
           type,
         },
       })
-      console.log('exits', exits.length)
       if (exits.length == 0) {
         await this.prismaDB.prisma.articleLikeCollect.create({
           data: {
@@ -313,6 +312,10 @@ export class ArticleService {
             },
           })
           await updateArticle({ likes: 1, no_likes: -1, collects: 0 })
+          await this.userService.updatePraise({
+            user_id: article.user_id,
+            praise: 1,
+          })
         } else if (type == 2 && likes.length > 0) {
           // 踩踏就把点赞删除
           await this.prismaDB.prisma.articleLikeCollect.deleteMany({
@@ -329,6 +332,10 @@ export class ArticleService {
             },
           })
           await updateArticle({ likes: -1, no_likes: 1, collects: 0 })
+          await this.userService.updatePraise({
+            user_id: article.user_id,
+            praise: -1,
+          })
         } else {
           if (type == 1) {
             // 收藏
@@ -336,9 +343,17 @@ export class ArticleService {
           } else if (type == 0) {
             // 点赞
             await updateArticle({ likes: 1, no_likes: 0, collects: 0 })
+            await this.userService.updatePraise({
+              user_id: article.user_id,
+              praise: 1,
+            })
           } else {
             // 踩踏
             await updateArticle({ likes: 0, no_likes: 1, collects: 0 })
+            await this.userService.updatePraise({
+              user_id: article.user_id,
+              praise: -1,
+            })
           }
         }
 

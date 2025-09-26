@@ -1,13 +1,7 @@
 import { inject } from 'inversify'
 import { plainToClass } from 'class-transformer'
 import { isNumber, validate } from 'class-validator'
-import {
-  sendError,
-  sendSuccess,
-  sendFail,
-  handlePage,
-  isAdmin,
-} from '../../utils/index'
+import { sendError, sendSuccess, sendFail, handlePage } from '../../utils/index'
 import type { Request, Response } from 'express'
 import { PrismaDB } from '../../db/psimadb'
 import type { Page } from '../../types/index'
@@ -18,10 +12,13 @@ import {
   CreateFuncCommentDto,
   CommentLikeDto,
 } from './dto'
-import ts from 'node_modules/typescript/lib/typescript'
+import { UserService } from '../user/service'
 
 export class FrameFuncService {
-  constructor(@inject(PrismaDB) private prismaDB: PrismaDB) {}
+  constructor(
+    @inject(PrismaDB) private prismaDB: PrismaDB,
+    @inject(UserService) private userService: UserService
+  ) {}
   public async getFrameFuncService(req: Request, res: Response) {
     const query = req.query as unknown as Page
     const { pageNum, pageSize, sort, startTime, endTime, all, status } =
@@ -514,6 +511,10 @@ export class FrameFuncService {
             data: { likes: comment.likes - 1 },
           }),
         ])
+        await this.userService.updatePraise({
+          user_id: comment.user_id,
+          praise: -1,
+        })
       } else {
         await this.prismaDB.prisma.$transaction([
           this.prismaDB.prisma.frameArticleCommentLike.create({
@@ -528,6 +529,10 @@ export class FrameFuncService {
             data: { likes: comment.likes + 1 },
           }),
         ])
+        await this.userService.updatePraise({
+          user_id: comment.user_id,
+          praise: 1,
+        })
       }
       return sendSuccess(
         res,
@@ -563,6 +568,10 @@ export class FrameFuncService {
             data: { likes: comment.likes - 1 },
           }),
         ])
+        await this.userService.updatePraise({
+          user_id: comment.user_id,
+          praise: -1,
+        })
       } else {
         await this.prismaDB.prisma.$transaction([
           this.prismaDB.prisma.frameArticleCommentLike.create({
@@ -577,6 +586,10 @@ export class FrameFuncService {
             data: { likes: comment.likes + 1 },
           }),
         ])
+        await this.userService.updatePraise({
+          user_id: comment.user_id,
+          praise: 1,
+        })
       }
       return sendSuccess(
         res,

@@ -52,7 +52,7 @@ export class User {
   }
   @httpPut('/integral')
   private async updateIntegral(req: Request, res: Response) {
-    return await this.userService.updateIntegral(req, res, undefined)
+    return await this.userService.updateIntegral(undefined)
   }
   // 关注操作
   @httpPost('/follows', JWT.middlewareToken())
@@ -63,5 +63,11 @@ export class User {
   @httpGet('/follows/:phone?', JWT.middlewareToken())
   private async getFollowList(req: Request, res: Response) {
     return await this.userService.getFollowList(req, res)
+  }
+
+  // 推荐关注
+  @httpGet('/recommends/:phone?')
+  private async recommend(req: Request, res: Response) {
+    return await this.userService.recommend(req, res)
   }
 }

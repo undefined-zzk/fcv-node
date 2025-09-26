@@ -20,7 +20,6 @@ import {
   decryptWithPrivateKey,
   getClientIp,
   handlePage,
-  isAdmin,
 } from '../../utils/index'
 import jsyaml from 'js-yaml'
 import { Page } from '../../types/index'
@@ -279,18 +278,17 @@ export class UserService {
         attention_status = 0 // 关注
       }
     }
-    // const integral=0 //积分
-    // const praise=0 //获赞数
     // const rank=0 //排名
     return sendSuccess(res, {
       ...userInfo,
       balance,
       accounts: [],
-      // followers: [],
-      // following: [],
+      followers: [],
+      following: [],
       fans,
       attention_status,
       attention,
+      rank: 100,
     })
   }
   public async updateUserInfo(req: Request, res: Response) {
@@ -323,12 +321,50 @@ export class UserService {
       return sendFail(res, 400, '更新失败')
     }
   }
-
-  public async updateIntegral(
-    req: Request,
-    res: Response,
-    integralParams: IntegralParams | undefined
-  ) {
+  // 更新用户获赞数量
+  public async updatePraise(options: { user_id: number; praise: number }) {
+    const user = await this.prismaDB.prisma.user.findUnique({
+      where: { id: +options.user_id },
+    })
+    if (user) {
+      await this.prismaDB.prisma.user.update({
+        where: { id: +options.user_id },
+        data: {
+          praise: (user.praise! += options.praise),
+        },
+      })
+      if (options.praise > 0) {
+        await this.updateIntegral({
+          user_id: options.user_id,
+          integral: 1,
+          source_id: 0,
+          source: '文章、评论、功能获得点赞',
+          type: 0,
+        })
+      }
+    }
+  }
+  // 更新用户粉丝和关注数量
+  public async updateFansAttention(options: {
+    user_id: number
+    fan: number
+    attention: number
+  }) {
+    const user = await this.prismaDB.prisma.user.findUnique({
+      where: { id: +options.user_id },
+    })
+    if (user) {
+      await this.prismaDB.prisma.user.update({
+        where: { id: +options.user_id },
+        data: {
+          fans: (user.fans! += options.fan),
+          attention: (user.attention! += options.attention),
+        },
+      })
+    }
+  }
+  // 更新用户积分
+  public async updateIntegral(integralParams: IntegralParams | undefined) {
     if (integralParams) {
       const { integral, user_id, ...rest } = integralParams
       const user = await this.prismaDB.prisma.user.findUnique({
@@ -348,10 +384,16 @@ export class UserService {
           },
         }),
       ])
-    } else {
-      return sendSuccess(res, 'ok')
     }
   }
+  // public async updateRank(options: { user: any; rank: number }) {
+  //   await this.prismaDB.prisma.user.update({
+  //     where: { id: +options.user.user_id },
+  //     data: {
+  //       rank: (options.user.rank! += options.rank),
+  //     },
+  //   })
+  // }
   public async follow(req: Request, res: Response) {
     const follow = plainToClass(FollowDto, req.body)
     const errors = await validate(follow)
@@ -378,6 +420,16 @@ export class UserService {
           status: 0,
         },
       })
+      await this.updateFansAttention({
+        user_id: followed_id,
+        fan: 1,
+        attention: 0,
+      })
+      await this.updateFansAttention({
+        user_id: +user.id,
+        fan: 0,
+        attention: 1,
+      })
       return sendSuccess(res, result)
     } else {
       const result = await this.prismaDB.prisma.attentionFans.update({
@@ -390,6 +442,29 @@ export class UserService {
           status: exits.status == 0 ? 1 : 0,
         },
       })
+      if (result.status == 0) {
+        await this.updateFansAttention({
+          user_id: followed_id,
+          fan: 1,
+          attention: 0,
+        })
+        await this.updateFansAttention({
+          user_id: +user.id,
+          fan: 0,
+          attention: 1,
+        })
+      } else {
+        await this.updateFansAttention({
+          user_id: followed_id,
+          fan: -1,
+          attention: 0,
+        })
+        await this.updateFansAttention({
+          user_id: +user.id,
+          fan: 0,
+          attention: -1,
+        })
+      }
       return sendSuccess(res, result)
     }
   }
@@ -466,20 +541,6 @@ export class UserService {
           },
         },
       })
-      // for (let i = 0; i < columnList.length; i++) {
-      //   const item = columnList[i]
-      //   const obj = await this.prismaDB.prisma.attentionFans.findFirst({
-      //     where: {
-      //       followed_id: item.id,
-      //       follower_id: +user.id,
-      //     },
-      //   })
-      //   if (obj) {
-      //     item.attention_status = obj.status
-      //   } else {
-      //     item.attention_status = 1
-      //   }
-      // }
     } else {
       // 粉丝列表
       await getFollowList({
@@ -519,5 +580,72 @@ export class UserService {
       pageNum,
       pageSize,
     })
+  }
+
+  public async recommend(req: Request, res: Response) {
+    const sort = 'asc'
+    const phone = req.params.phone
+    let user
+    if (phone) {
+      user = await this.prismaDB.prisma.user.findUnique({
+        where: { phone },
+        select: { id: true, phone: true, role: true, status: true },
+      })
+    }
+    const result = await this.prismaDB.prisma.user.findMany({
+      take: 10,
+      skip: 0,
+      where: {
+        status: 0,
+        role: {
+          array_contains: 'user',
+        },
+        id: {
+          not: user ? user.id : undefined,
+        },
+      },
+      select: {
+        avatar: true,
+        nickname: true,
+        intro: true,
+        phone: true,
+        id: true,
+        member: true,
+        integral: true,
+        rank: true,
+        fans: true,
+        praise: true,
+      },
+      orderBy: [
+        { member: sort },
+        { rank: sort },
+        { fans: sort },
+        { praise: sort },
+        { integral: sort },
+      ],
+    })
+
+    for (let i = 0; i < result.length; i++) {
+      const item = result[i]
+      const res = await this.prismaDB.prisma.attentionFans.findFirst({
+        where: {
+          followed_id: item.id,
+          follower_id: user ? user.id : undefined,
+        },
+      })
+      if (res) {
+        if (user) {
+          // @ts-ignore
+          item.attention_status = res.status
+        } else {
+          // @ts-ignore
+          item.attention_status = 1
+        }
+      } else {
+        // @ts-ignore
+        item.attention_status = 1
+      }
+    }
+    return sendSuccess(res, result)
   }
 }
